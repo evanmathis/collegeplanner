@@ -40,6 +40,8 @@ class School(db.Model):
     abroad_steps = db.Column(db.Text, default="")
     # Deadline as the school states it, for dates too vague to put on the timeline.
     app_deadline_note = db.Column(db.Text, default="")
+    # Facts we couldn't confirm on the school's own pages.
+    to_confirm = db.Column(db.Text, default="")
 
     deadlines = db.relationship("Deadline", backref="school", cascade="all, delete-orphan",
                                 order_by="Deadline.due_date")

@@ -34,7 +34,17 @@
   {% if school.program_link %}<dt>Program page</dt><dd><a href="{{ school.program_link }}" target="_blank" rel="noopener">{{ school.program_link }}</a></dd>{% endif %}
   {% if school.notes %}<dt>Notes</dt><dd>{{ school.notes }}</dd>{% endif %}
   {% if school.data_status %}<dt>Info checked</dt><dd class="muted">{{ school.data_status }}</dd>{% endif %}
+  {% if school.to_confirm %}<dt>Still to confirm</dt><dd class="muted">{{ school.to_confirm }}</dd>{% endif %}
 </dl>
+
+<section>
+  <div class="head"><h2>Links</h2><a class="btn small" href="{{ url_for('planner.edit', kind='link', f_school_id=school.id, next=request.path) }}">Add</a></div>
+  <ul class="plain">
+  {% for l in school.links %}
+    <li><a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a> {{ actions('link', l) }}</li>
+  {% else %}<li class="muted">No links yet.</li>{% endfor %}
+  </ul>
+</section>
 
 <section>
   <div class="head"><h2>Deadlines</h2><a class="btn small" href="{{ url_for('planner.edit', kind='deadline', f_school_id=school.id, next=request.path) }}">Add</a></div>
@@ -60,14 +70,6 @@
   </ul>
 </section>
 
-<section>
-  <div class="head"><h2>Links</h2><a class="btn small" href="{{ url_for('planner.edit', kind='link', f_school_id=school.id, next=request.path) }}">Add</a></div>
-  <ul class="plain">
-  {% for l in school.links %}
-    <li><a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a> {{ actions('link', l) }}</li>
-  {% else %}<li class="muted">No links yet.</li>{% endfor %}
-  </ul>
-</section>
 
 <section>
   <div class="head"><h2>Questions</h2><a class="btn small" href="{{ url_for('planner.edit', kind='question', f_school_id=school.id, next=request.path) }}">Ask</a></div>

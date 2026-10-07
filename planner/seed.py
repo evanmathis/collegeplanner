@@ -217,6 +217,73 @@ def import_more_schools(path):
     return stats
 
 
+LINK_LABELS = [("program_link", "Composition program page"),
+               ("admissions_link", "Music admissions / audition / portfolio"),
+               ("aid_link", "Financial aid / net price calculator")]
+
+
+def add_link(school, label, url):
+    if url and not Link.query.filter_by(school_id=school.id, url=url).first():
+        db.session.add(Link(school=school, label=label, url=url))
+        return 1
+    return 0
+
+
+def import_school_details(path):
+    """Extra facts and links for US schools (school_details.csv), matched by name.
+
+    Fills in what the other files leave blank; it never changes status, notes or
+    anything Cian has edited, and only adds links that aren't there yet.
+    """
+    stats = dict(schools=0, links=0, deadlines=0)
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            school = School.query.filter_by(name=row["school"].strip()).first()
+            if not school:
+                continue
+            stats["schools"] += 1
+
+            def fill(attr, value, overwrite=False):
+                value = (value or "").strip()
+                if value and (overwrite or not getattr(school, attr)):
+                    setattr(school, attr, value)
+
+            place = " ".join(p for p in (row.get("city", ""), row.get("state", "")) if p)
+            fill("city", place)
+            fill("country", "USA" if place else "")
+            fill("school_type", row.get("type"))
+            fill("degree", row.get("degree_for_composition"))
+            new_program = (row.get("program_link") or "").strip()
+            if new_program and school.program_link and new_program != school.program_link:
+                # The imported page moved; repoint the link we created for it.
+                Link.query.filter_by(school_id=school.id, url=school.program_link).update(
+                    {"url": new_program, "label": "Composition program page"})
+            fill("program_link", new_program, overwrite=True)
+            fill("app_platform", row.get("app_route"))
+            fill("app_deadline_note", row.get("app_deadline"))
+            fill("music_requirement", row.get("music_requirement"))
+            fill("entry_term", row.get("entry"))
+            fill("language", row.get("language"))
+            fill("cost", row.get("cost"))
+            fill("us_aid", row.get("us_aid"))
+            fill("to_confirm", row.get("unconfirmed"), overwrite=True)
+            if row.get("confidence") and school.status in ("Considering", "Idea"):
+                fill("data_status", row["confidence"], overwrite=True)
+
+            for key, label in LINK_LABELS:
+                stats["links"] += add_link(school, label, (row.get(key) or "").strip())
+            # Dated deadlines only for schools that don't have any yet (the suggestions),
+            # so the main list's checked deadlines aren't duplicated.
+            if not school.deadlines:
+                stats["deadlines"] += deadlines_from_column(
+                    school, row.get("app_deadline"), "Application", "Application due",
+                    label=True)
+                stats["deadlines"] += deadlines_from_column(
+                    school, row.get("music_deadline"), "Music", "Music application / portfolio due")
+    db.session.commit()
+    return stats
+
+
 TASK_CATEGORY_MAP = {"school": "High school", "application": "Application"}
 APPLIES_TO_LABELS = {"UC": "UC Application", "CSU": "Cal State Apply", "UC;CSU": "UC and Cal State",
                      "all": "All schools", "as needed": "Only if a school asks"}
@@ -263,6 +330,11 @@ def register_cli(app):
             stats = import_more_schools(more)
             click.echo("Added {schools} more schools (private, out of state, abroad), "
                        "{deadlines} deadlines, {links} links.".format(**stats))
+        details = os.path.join(data_dir, "school_details.csv")
+        if os.path.exists(details):
+            stats = import_school_details(details)
+            click.echo("Filled in details for {schools} US schools: {links} links, "
+                       "{deadlines} deadlines.".format(**stats))
         tasks = os.path.join(data_dir, "tasks.csv")
         if os.path.exists(tasks):
             click.echo(f"Added {import_tasks(tasks)} high school and application tasks.")

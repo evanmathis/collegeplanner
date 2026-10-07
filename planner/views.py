@@ -34,6 +34,7 @@ FORMS = {
         ("us_aid", "US financial aid", "text", None),
         ("abroad_steps", "Extra steps to study abroad", "textarea", None),
         ("program_link", "Program page", "url", None),
+        ("to_confirm", "Still to confirm", "textarea", None),
         ("fee_waiver", "Application fee waiver", "select", FEE_WAIVER_STATUSES),
         ("notes", "Notes", "textarea", None),
     ]),
