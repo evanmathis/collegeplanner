@@ -43,8 +43,11 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 python -m pip install -r requirements-dev.txt
 
 python -m flask --app planner seed          # loads the schools and deadlines from data/
-python -m flask --app planner run --debug   # open http://127.0.0.1:5000
+python -m flask --app planner run --debug --port 5001   # open http://127.0.0.1:5001
 ```
+
+Port 5001 because macOS uses port 5000 for AirPlay Receiver; opening
+http://127.0.0.1:5000 on a Mac shows a blank page or "403 Forbidden" from AirPlay, not the planner.
 
 Use `python -m flask`, not plain `flask`: if Flask is also installed outside the
 virtualenv (for example by Homebrew), plain `flask` can run that copy, which can't see
