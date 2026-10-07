@@ -2,8 +2,13 @@ from datetime import date, datetime
 
 from . import db
 
-SCHOOL_STATUSES = ["Idea", "Considering", "Applying", "Submitted", "Admitted",
-                   "Waitlisted", "Denied", "Committed"]
+SCHOOL_STATUSES = ["Considering", "Applying", "Submitted", "Admitted", "Waitlisted",
+                   "Denied", "Committed", "Removed"]
+# Schools Cian hasn't kept yet, or has removed, stay out of the timeline and calendar.
+# ("Idea" is the old name for "Considering".)
+UNDECIDED = ("Considering", "Idea")
+OFF_LIST = UNDECIDED + ("Removed",)
+SCHOOL_SYSTEMS = ["UC", "CSU", "California private", "Out of state", "Abroad", "Other"]
 FEE_WAIVER_STATUSES = ["Not checked", "Eligible", "Requested", "Granted", "Not eligible"]
 DEADLINE_KINDS = ["Application", "Music", "Financial aid", "Scholarship", "Other"]
 TASK_CATEGORIES = ["Application", "High school", "Music", "Financial aid", "Testing", "General"]
@@ -24,6 +29,17 @@ class School(db.Model):
     fee_waiver = db.Column(db.String(30), default="Not checked")
     # How well the imported facts were checked ("verified", "partly verified", ...).
     data_status = db.Column(db.String(40), default="")
+    country = db.Column(db.String(80), default="")
+    city = db.Column(db.String(80), default="")
+    school_type = db.Column(db.String(20), default="")  # public / private
+    language = db.Column(db.String(80), default="")
+    entry_term = db.Column(db.String(80), default="")
+    cost = db.Column(db.Text, default="")
+    us_aid = db.Column(db.Text, default="")
+    # Extra steps for schools outside the US (diploma recognition, visa, entrance exam trip).
+    abroad_steps = db.Column(db.Text, default="")
+    # Deadline as the school states it, for dates too vague to put on the timeline.
+    app_deadline_note = db.Column(db.Text, default="")
 
     deadlines = db.relationship("Deadline", backref="school", cascade="all, delete-orphan",
                                 order_by="Deadline.due_date")
@@ -32,6 +48,14 @@ class School(db.Model):
     links = db.relationship("Link", backref="school", cascade="all, delete-orphan")
     questions = db.relationship("Question", backref="school", cascade="all, delete-orphan",
                                 order_by="Question.created_at.desc()")
+
+    @property
+    def on_list(self):
+        return self.status not in OFF_LIST
+
+    @property
+    def undecided(self):
+        return self.status in UNDECIDED
 
     def open_items(self):
         return ([d for d in self.deadlines if not d.done]

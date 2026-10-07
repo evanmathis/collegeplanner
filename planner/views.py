@@ -8,9 +8,9 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect,
 
 from . import db
 from .ical import build_calendar
-from .models import (DEADLINE_KINDS, FEE_WAIVER_STATUSES, QUESTION_TOPICS,
-                     SCHOLARSHIP_STATUSES, SCHOOL_STATUSES, TASK_CATEGORIES, Deadline,
-                     Link, Question, Scholarship, School, Task)
+from .models import (DEADLINE_KINDS, FEE_WAIVER_STATUSES, OFF_LIST, QUESTION_TOPICS,
+                     SCHOLARSHIP_STATUSES, SCHOOL_STATUSES, SCHOOL_SYSTEMS, TASK_CATEGORIES,
+                     UNDECIDED, Deadline, Link, Question, Scholarship, School, Task)
 
 bp = Blueprint("planner", __name__)
 
@@ -19,11 +19,20 @@ bp = Blueprint("planner", __name__)
 FORMS = {
     "school": (School, "School", [
         ("name", "Name", "text", None),
-        ("system", "System", "select", ["UC", "CSU", "Out of state", "Other"]),
+        ("system", "System", "select", SCHOOL_SYSTEMS),
         ("status", "Status", "select", SCHOOL_STATUSES),
+        ("country", "Country", "text", None),
+        ("city", "City", "text", None),
+        ("school_type", "Public or private", "select", ["", "public", "private"]),
         ("degree", "Degree / program", "text", None),
-        ("app_platform", "Application platform", "text", None),
+        ("app_platform", "How to apply", "text", None),
+        ("app_deadline_note", "Application deadline (as the school states it)", "text", None),
         ("music_requirement", "Music requirement (portfolio, audition...)", "textarea", None),
+        ("entry_term", "Starts", "text", None),
+        ("language", "Language of teaching", "text", None),
+        ("cost", "Rough cost per year", "text", None),
+        ("us_aid", "US financial aid", "text", None),
+        ("abroad_steps", "Extra steps to study abroad", "textarea", None),
         ("program_link", "Program page", "url", None),
         ("fee_waiver", "Application fee waiver", "select", FEE_WAIVER_STATUSES),
         ("notes", "Notes", "textarea", None),
@@ -126,10 +135,14 @@ def timeline_items(include_done=False):
     """Everything with a date, as dicts sorted by date."""
     items = []
     for d in Deadline.query.all():
+        if d.school and not d.school.on_list:
+            continue
         if include_done or not d.done:
             items.append(dict(kind="deadline", obj=d, date=d.due_date, title=d.title,
                               label=d.kind, school=d.school, done=d.done))
     for t in Task.query.filter(Task.due_date.isnot(None)).all():
+        if t.school and not t.school.on_list:
+            continue
         if include_done or not t.done:
             items.append(dict(kind="task", obj=t, date=t.due_date, title=t.title,
                               label="Task", school=t.school, done=t.done))
@@ -142,17 +155,24 @@ def timeline_items(include_done=False):
     return items
 
 
+def on_list_schools():
+    return (School.query.filter(School.status.notin_(OFF_LIST))
+            .order_by(School.name).all())
+
+
 @bp.route("/")
 def dashboard():
     today = date.today()
     items = timeline_items()
     overdue = [i for i in items if i["date"] < today]
     soon = [i for i in items if today <= i["date"] <= today + timedelta(days=30)]
-    schools = School.query.filter(School.status != "Idea").order_by(School.name).all()
-    open_tasks = Task.query.filter_by(done=False).count()
+    schools = on_list_schools()
+    undecided = School.query.filter(School.status.in_(UNDECIDED)).count()
+    open_tasks = sum(1 for t in Task.query.filter_by(done=False) if not t.school or t.school.on_list)
     open_questions = Question.query.filter_by(done=False).count()
     return render_template("dashboard.html", overdue=overdue, soon=soon, schools=schools,
-                           open_tasks=open_tasks, open_questions=open_questions)
+                           open_tasks=open_tasks, open_questions=open_questions,
+                           undecided=undecided)
 
 
 @bp.route("/timeline")
@@ -167,9 +187,34 @@ def timeline():
 @bp.route("/schools")
 def schools():
     rows = School.query.order_by(School.name).all()
-    active = [s for s in rows if s.status != "Idea"]
-    ideas = [s for s in rows if s.status == "Idea"]
-    return render_template("schools.html", active=active, ideas=ideas)
+    active = [s for s in rows if s.on_list]
+    removed = [s for s in rows if s.status == "Removed"]
+    groups = OrderedDict((g, []) for g in SCHOOL_SYSTEMS)
+    for s in rows:
+        if s.undecided:
+            groups[s.system if s.system in groups else "Other"].append(s)
+    deciding = [(g, items) for g, items in groups.items() if items]
+    return render_template("schools.html", active=active, deciding=deciding, removed=removed)
+
+
+@bp.route("/schools/<int:id>/choose", methods=["POST"])
+def choose(id):
+    """Cian's keep / remove choice. Removing never deletes, so it can be undone."""
+    school = db.get_or_404(School, id)
+    choice = request.form.get("choice")
+    if choice == "keep":
+        school.status = "Applying"
+        flash(f"{school.name} is on your list. Its dates are now on the timeline.")
+    elif choice == "remove":
+        school.status = "Removed"
+        flash(f"{school.name} removed. You can bring it back from the bottom of the Schools page.")
+    elif choice == "restore":
+        school.status = "Considering"
+        flash(f"{school.name} is back under Still deciding.")
+    else:
+        abort(400)
+    db.session.commit()
+    return redirect(safe_next(request.form.get("next"), url_for("planner.schools")))
 
 
 @bp.route("/schools/<int:id>")
@@ -181,7 +226,7 @@ def school_detail(id):
 @bp.route("/tasks")
 def tasks():
     rows = Task.query.order_by(Task.done, Task.due_date.is_(None), Task.due_date).all()
-    return render_template("tasks.html", tasks=rows)
+    return render_template("tasks.html", tasks=[t for t in rows if not t.school or t.school.on_list])
 
 
 @bp.route("/questions")
@@ -194,11 +239,13 @@ def questions():
 def aid():
     aid_deadlines = (Deadline.query.filter(Deadline.kind.in_(["Financial aid", "Scholarship"]))
                      .order_by(Deadline.due_date).all())
-    schools = School.query.filter(School.status != "Idea").order_by(School.name).all()
+    schools = on_list_schools()
     scholarships = Scholarship.query.order_by(Scholarship.deadline.is_(None),
                                               Scholarship.deadline).all()
     aid_tasks = (Task.query.filter_by(category="Financial aid")
                  .order_by(Task.done, Task.due_date).all())
+    aid_deadlines = [d for d in aid_deadlines if not d.school or d.school.on_list]
+    aid_tasks = [t for t in aid_tasks if not t.school or t.school.on_list]
     return render_template("aid.html", aid_deadlines=aid_deadlines, schools=schools,
                            scholarships=scholarships, aid_tasks=aid_tasks,
                            fee_waiver_statuses=FEE_WAIVER_STATUSES)

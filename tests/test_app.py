@@ -6,8 +6,8 @@ import pytest
 
 from planner import create_app, db
 from planner.models import Deadline, Question, School, Task
-from planner.seed import (DATA_DIR, import_schools, import_suggestions, import_tasks,
-                          parse_dates)
+from planner.seed import (DATA_DIR, import_more_schools, import_schools, import_suggestions,
+                          import_tasks, parse_dates)
 
 
 @pytest.fixture
@@ -33,6 +33,7 @@ def seed(app):
         import_schools(os.path.join(DATA_DIR, "schools.csv"))
         import_suggestions(os.path.join(DATA_DIR, "suggestions.csv"))
         import_tasks(os.path.join(DATA_DIR, "tasks.csv"))
+        import_more_schools(os.path.join(DATA_DIR, "more_schools.csv"))
 
 
 def test_parse_dates_reuses_year():
@@ -137,3 +138,50 @@ def test_calendar_download_and_feed(tmp_path):
 def test_calendar_feed_off_without_token(client):
     assert client.get("/calendar/anything.ics").status_code == 404
     assert b"feed is off" in client.get("/calendar").data
+
+
+def test_keep_remove_restore(app, client):
+    seed(app)
+    with app.app_context():
+        usc = School.query.filter_by(name="USC Thornton").one()
+        assert usc.status == "Considering" and not usc.on_list
+        usc_id = usc.id
+        madrid = School.query.filter(School.name.like("Real Conservatorio%")).one()
+        assert madrid.system == "Abroad" and "visa" in madrid.abroad_steps
+        assert School.query.filter_by(status="Idea").count() == 0
+    token = csrf(client)
+    # Undecided schools stay off the timeline.
+    assert b"USC Thornton" not in client.get("/timeline").data
+    assert b"USC Thornton" in client.get("/schools").data
+    client.post(f"/schools/{usc_id}/choose", data={"_csrf": token, "choice": "keep"},
+                follow_redirects=True)  # shows the flash message now, not on the next page
+    assert b"USC Thornton" in client.get("/timeline").data
+    client.post(f"/schools/{usc_id}/choose", data={"_csrf": token, "choice": "remove"},
+                follow_redirects=True)  # shows the flash message now, not on the next page
+    assert b"USC Thornton" not in client.get("/timeline").data
+    with app.app_context():
+        assert db.session.get(School, usc_id).status == "Removed"  # kept, not deleted
+    seed(app)  # re-running the import keeps Cian's choice
+    with app.app_context():
+        assert db.session.get(School, usc_id).status == "Removed"
+    client.post(f"/schools/{usc_id}/choose", data={"_csrf": token, "choice": "restore"},
+                follow_redirects=True)  # shows the flash message now, not on the next page
+    with app.app_context():
+        assert db.session.get(School, usc_id).status == "Considering"
+    assert client.get(f"/schools/{usc_id}").status_code == 200
+
+
+def test_old_database_gets_new_columns(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE school (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL UNIQUE, "
+                "status VARCHAR(30))")
+    con.execute("INSERT INTO school (name, status) VALUES ('UCLA', 'Applying')")
+    con.commit()
+    con.close()
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{path}"})
+    with app.app_context():
+        ucla = School.query.one()
+        assert ucla.abroad_steps is None and ucla.on_list
+    assert app.test_client().get("/schools/1").status_code == 200

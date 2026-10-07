@@ -1,0 +1,11 @@
+{# Keep / Remove / Restore buttons for one school. Expects `s`. #}
+<form method="post" action="{{ url_for('planner.choose', id=s.id) }}" class="inline choose">
+  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  {% if s.status == 'Removed' %}
+    <button class="btn small" name="choice" value="restore">Bring back</button>
+  {% else %}
+    <button class="btn small keep" name="choice" value="keep">Keep</button>
+    <button class="btn small" name="choice" value="remove">Remove</button>
+  {% endif %}
+</form>

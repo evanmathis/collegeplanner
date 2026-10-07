@@ -11,7 +11,7 @@ DreamHost.
 
 - **Home**: what's overdue, what's due in the next 30 days, and progress per school.
 - **Timeline**: every deadline, dated task and scholarship deadline by month. Tick items off as they're done.
-- **Schools**: the list, plus "Ideas" (suggested schools). Each school page has its requirements, deadlines, tasks, links and questions.
+- **Schools**: Cian's list, plus "Still deciding" (suggested schools, private and out-of-state options, and schools in Spain and Latin America) with a Keep or Remove button on each. Removed schools stay under "Removed" and can be brought back. Only kept schools show on the timeline, tasks and calendar. Each school page has its requirements, extra steps for studying abroad, deadlines, tasks, links and questions.
 - **Tasks**: every to-do across all schools.
 - **Paying for college**: a short guide to FAFSA / CA Dream Act and Cal Grant, aid deadlines, fee-waiver status per school, and a scholarship tracker.
 - **Questions**: log anything you're unsure about and write down the answer when you find it.
@@ -54,7 +54,7 @@ Run the tests with `pytest`.
 ## School data
 
 `data/schools.csv` has one row per school (deadlines for the fall 2027 class, checked
-2026-10-07), `data/suggestions.csv` has other schools worth a look, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions). `data/README.md`
+2026-10-07), `data/suggestions.csv` and `data/more_schools.csv` (notes in `data/more_schools_notes.md`) have other schools to decide on, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions). `data/README.md`
 summarizes the shared deadlines. To update the data, edit the CSVs and run
 `flask --app planner seed` again.
 

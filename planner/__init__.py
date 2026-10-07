@@ -36,5 +36,24 @@ def create_app(config=None):
 
     with app.app_context():
         db.create_all()
+        add_missing_columns()
 
     return app
+
+
+def add_missing_columns():
+    """create_all() won't add new columns to an existing table, so add them here.
+
+    Keeps an existing planner database (local SQLite or DreamHost MySQL) working
+    after an update without a separate migration tool.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    with db.engine.begin() as conn:
+        for table in db.metadata.sorted_tables:
+            existing = {c["name"] for c in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in existing:
+                    col_type = column.type.compile(dialect=db.engine.dialect)
+                    conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}"))

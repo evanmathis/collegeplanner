@@ -1,8 +1,9 @@
-"""Load the school data table (data/schools.csv, suggestions.csv, tasks.csv) into the database.
+"""Load the school data table (data/*.csv) into the database.
 
 Safe to run more than once: schools are matched by name, and deadlines, tasks and
 links are only added when an identical one isn't already there. Cian's own changes
-(status, fee waiver, notes, done checkboxes) are never overwritten.
+(status, including keep / remove choices, fee waiver, notes, done checkboxes) are
+never overwritten.
 """
 import csv
 import os
@@ -73,14 +74,23 @@ def add_task(school, title, due, category):
     return 0
 
 
-def deadlines_from_column(school, text, kind, default_title):
-    """One deadline per ';'-separated part that has a date."""
+def deadlines_from_column(school, text, kind, default_title, label=False):
+    """One deadline per ';'-separated part that has a date.
+
+    With label=True a short word next to the date names the deadline,
+    e.g. "EA 2026-11-01" becomes "Application due (EA)".
+    """
     added = 0
     for part in (text or "").split(";"):
         dates = parse_dates(part)
         if not dates:
             continue
-        title = default_title + (" (pick a date)" if len(dates) > 1 else "")
+        title = default_title
+        words = re.sub(r"[()]", "", DATE_RE.sub("", part)).strip(" ,:")
+        if label and words and len(words) <= 20:
+            title += f" ({words})"
+        elif len(dates) > 1:
+            title += " (pick a date)"
         notes = part.strip() if has_words(part) or len(dates) > 1 else ""
         added += add_deadline(school, title, dates[0], kind, notes)
     return added
@@ -153,11 +163,58 @@ def import_suggestions(path):
                 system = "UC"
             else:
                 system = "CSU"
-            _, created = get_or_create_school(name, status="Idea", system=system,
+            _, created = get_or_create_school(name, status="Considering", system=system,
                                               notes=row["why"])
             added += created
+    # Earlier versions loaded these as "Idea"; that was the seed's default, not Cian's choice.
+    School.query.filter_by(status="Idea").update({"status": "Considering"})
     db.session.commit()
     return added
+
+
+def import_more_schools(path):
+    """US private, out-of-state and abroad options (more_schools.csv), all as "Considering"
+    until Cian keeps or removes them."""
+    stats = dict(schools=0, deadlines=0, links=0)
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            country, city = row["country"].strip(), row["city"].strip()
+            if not country.startswith("USA"):
+                system = "Abroad"
+            elif city.endswith(" CA"):
+                system = "California private" if row["type"] == "private" else "Other"
+            else:
+                system = "Out of state"
+            school, created = get_or_create_school(row["school"].strip(), status="Considering")
+            stats["schools"] += created
+            school.system = system
+            school.country, school.city = country, city
+            school.school_type = row["type"]
+            school.degree = row["degree_for_composition"]
+            school.app_platform = row["app_route"]
+            school.app_deadline_note = row["app_deadline"]
+            school.music_requirement = row["music_requirement"]
+            school.entry_term = row["entry_for_fall_2027"]
+            school.language = row["language"]
+            school.cost = row["rough_cost_usd_per_year"]
+            school.us_aid = row["us_aid"]
+            school.abroad_steps = row["what_cian_needs_abroad"]
+            school.program_link = row["program_link"]
+            school.data_status = row["confidence"]
+            if not school.notes:
+                school.notes = row["why"]
+
+            stats["deadlines"] += deadlines_from_column(
+                school, row["app_deadline"], "Application", "Application due", label=True)
+            stats["deadlines"] += deadlines_from_column(
+                school, row["music_requirement"], "Music", "Audition / exam")
+            if row["program_link"] and not Link.query.filter_by(
+                    school_id=school.id, url=row["program_link"]).first():
+                db.session.add(Link(school=school, label="Program / admissions page",
+                                    url=row["program_link"]))
+                stats["links"] += 1
+    db.session.commit()
+    return stats
 
 
 TASK_CATEGORY_MAP = {"school": "High school", "application": "Application"}
@@ -192,7 +249,7 @@ def import_tasks(path):
 def register_cli(app):
     @app.cli.command("seed")
     @click.option("--data-dir", default=DATA_DIR, show_default=True,
-                  help="Folder holding schools.csv, suggestions.csv and tasks.csv.")
+                  help="Folder holding schools.csv, suggestions.csv, more_schools.csv, tasks.csv.")
     def seed_command(data_dir):
         """Import the school list, deadlines, suggestions and tasks."""
         stats = import_schools(os.path.join(data_dir, "schools.csv"))
@@ -200,7 +257,12 @@ def register_cli(app):
                    "{links} links.".format(**stats))
         suggestions = os.path.join(data_dir, "suggestions.csv")
         if os.path.exists(suggestions):
-            click.echo(f"Added {import_suggestions(suggestions)} suggested schools (as Ideas).")
+            click.echo(f"Added {import_suggestions(suggestions)} suggested schools.")
+        more = os.path.join(data_dir, "more_schools.csv")
+        if os.path.exists(more):
+            stats = import_more_schools(more)
+            click.echo("Added {schools} more schools (private, out of state, abroad), "
+                       "{deadlines} deadlines, {links} links.".format(**stats))
         tasks = os.path.join(data_dir, "tasks.csv")
         if os.path.exists(tasks):
             click.echo(f"Added {import_tasks(tasks)} high school and application tasks.")

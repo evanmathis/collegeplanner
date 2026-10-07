@@ -10,6 +10,10 @@
   <a href="{{ url_for('planner.questions') }}"><b>{{ open_questions }}</b> open questions</a>
 </div>
 
+{% if undecided %}
+<p class="decide">{{ undecided }} more schools are waiting for a keep or remove decision. <a href="{{ url_for('planner.schools') }}#deciding">Look through them</a>.</p>
+{% endif %}
+
 {% if overdue %}
 <h2>Overdue</h2>
 <ul class="items">{% for i in overdue %}{{ timeline_row(i) }}{% endfor %}</ul>
@@ -40,6 +44,6 @@
   </tbody>
 </table>
 {% else %}
-<p class="muted">No schools yet. <a href="{{ url_for('planner.edit', kind='school') }}">Add one</a>, or run <code>flask --app planner seed</code> to load the list.</p>
+<p class="muted">No schools yet. <a href="{{ url_for('planner.edit', kind='school') }}">Add one</a>, or run <code>flask --app planner seed</code> to load the list, or keep some from <a href="{{ url_for('planner.schools') }}#deciding">Still deciding</a>.</p>
 {% endif %}
 {% endblock %}
