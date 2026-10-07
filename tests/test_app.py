@@ -218,3 +218,22 @@ def test_us_school_details_and_links(app):
                                                    "Financial aid / net price calculator"}
         dupes = Counter((l.school_id, l.url) for l in Link.query)
         assert max(dupes.values()) == 1
+
+
+def test_header_up_next_and_alerts(app, client):
+    from datetime import timedelta
+    seed(app)
+    today = date.today()
+    with app.app_context():
+        db.session.add_all([
+            Task(title="Overdue thing", due_date=today - timedelta(days=1)),
+            Task(title="Urgent thing", due_date=today + timedelta(days=2)),
+            Task(title="Soon thing", due_date=today + timedelta(days=10)),
+        ])
+        db.session.commit()
+    html = client.get("/questions").get_data(as_text=True)
+    assert 'class="upnext"' in html
+    assert "1 overdue" in html and "1 due within 3 days" in html
+    assert "Overdue thing" in html and "1d overdue" in html
+    # Undecided schools' dates don't count.
+    assert "USC Thornton" not in html.split("<main>")[0]

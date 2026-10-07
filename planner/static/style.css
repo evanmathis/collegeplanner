@@ -116,3 +116,31 @@ h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
 .abroad p { margin: .3rem 0; }
 details.removed { margin-top: 1.8rem; }
 details.removed summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+
+/* Up next panel under the nav, on every page */
+.upnext { background: var(--card); border-bottom: 1px solid var(--line); padding: .45rem 16px; }
+.upnext summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center;
+                  max-width: 960px; margin: 0 auto; }
+.upnext ul { list-style: none; padding: 0; margin: .5rem auto .2rem; max-width: 960px;
+             display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .35rem .8rem; }
+.upnext li { display: flex; gap: .5rem; align-items: center; font-size: .9rem; padding: .3rem .5rem;
+             border-radius: 6px; border-left: 4px solid var(--line); background: var(--bg); }
+.upnext .check { width: 1.15rem; height: 1.15rem; }
+.upnext .u-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.upnext .u-days { white-space: nowrap; text-align: right; font-weight: 600; font-size: .85rem; }
+.upnext .u-days small { display: block; font-weight: 400; color: var(--muted); }
+.upnext .more { display: block; max-width: 960px; margin: .2rem auto 0; font-size: .85rem; }
+.upnext li.u-overdue { border-left-color: var(--bad); } .upnext li.u-overdue .u-days { color: var(--bad); }
+.upnext li.u-urgent { border-left-color: #d9480f; } .upnext li.u-urgent .u-days { color: #d9480f; }
+.upnext li.u-soon { border-left-color: var(--warn); } .upnext li.u-soon .u-days { color: var(--warn); }
+.alert { font-size: .78rem; font-weight: 600; padding: .05rem .5rem; border-radius: 99px; color: #fff; }
+.alert-overdue { background: var(--bad); }
+.alert-urgent { background: #d9480f; }
+.alert-soon { background: var(--warn); }
+@media (prefers-color-scheme: dark) { .alert { color: #16181c; } .upnext li.u-urgent { border-left-color: #ff9a5c; }
+  .upnext li.u-urgent .u-days { color: #ff9a5c; } .alert-urgent { background: #ff9a5c; } }
+.small { font-size: .85rem; }
+.upnext summary { list-style: none; }
+.upnext summary::-webkit-details-marker { display: none; }
+.upnext summary::before { content: "▸"; color: var(--muted); }
+.upnext[open] summary::before { content: "▾"; }

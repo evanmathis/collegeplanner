@@ -25,6 +25,43 @@
     {% endif %}
   </nav>
 </header>
+{% if request.endpoint != 'planner.login' and (not login_enabled or session.logged_in) %}
+{% set nxt = up_next() %}
+{% from "_macros.html" import toggle with context %}
+<details class="upnext" id="upnext" open>
+  <summary>
+    <b>Up next</b>
+    {% if nxt.counts.overdue %}<span class="alert alert-overdue">{{ nxt.counts.overdue }} overdue</span>{% endif %}
+    {% if nxt.counts.urgent %}<span class="alert alert-urgent">{{ nxt.counts.urgent }} due within 3 days</span>{% endif %}
+    {% if nxt.counts.soon %}<span class="alert alert-soon">{{ nxt.counts.soon }} due within 2 weeks</span>{% endif %}
+    {% if not (nxt.counts.overdue or nxt.counts.urgent or nxt.counts.soon) %}<span class="muted small">Nothing due in the next 2 weeks</span>{% endif %}
+  </summary>
+  <ul>
+    {% for i in nxt["items"] %}
+    {% set days = (i.date - today).days %}
+    <li class="u-{{ i.urgency }}">
+      {% if i.kind in ('deadline', 'task') %}{{ toggle(i.kind, i.obj) }}{% else %}<span class="check ghost">$</span>{% endif %}
+      <span class="u-title">{{ i.title }}{% if i.school %} <a class="school" href="{{ url_for('planner.school_detail', id=i.school.id) }}">{{ i.school.name }}</a>{% endif %}</span>
+      <span class="u-days">{% if days < 0 %}{{ -days }}d overdue{% elif days == 0 %}today{% elif days == 1 %}tomorrow{% else %}{{ days }} days{% endif %}<small>{{ i.date.strftime('%b %-d') }}</small></span>
+    </li>
+    {% else %}
+    <li class="muted">Nothing open with a date. Nice.</li>
+    {% endfor %}
+  </ul>
+  {% if nxt.total > nxt["items"]|length %}<a class="more" href="{{ url_for('planner.timeline') }}">See all {{ nxt.total }} on the timeline</a>{% endif %}
+</details>
+<script>
+  // Start collapsed on phones; remember the choice for this browser.
+  (function () {
+    var d = document.getElementById('upnext'), key = 'upnext-open';
+    try { var saved = localStorage.getItem(key); } catch (e) {}
+    if (saved === '0' || (saved === null && window.innerWidth < 700)) d.removeAttribute('open');
+    d.addEventListener('toggle', function () {
+      try { localStorage.setItem(key, d.open ? '1' : '0'); } catch (e) {}
+    });
+  })();
+</script>
+{% endif %}
 <main>
   {% with messages = get_flashed_messages() %}
     {% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}

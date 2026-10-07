@@ -103,7 +103,30 @@ def inject_globals():
     if "_csrf" not in session:
         session["_csrf"] = secrets.token_urlsafe(32)
     return {"csrf_token": session["_csrf"], "today": date.today(),
-            "login_enabled": bool(current_app.config["PLANNER_PASSWORD"])}
+            "login_enabled": bool(current_app.config["PLANNER_PASSWORD"]),
+            "up_next": up_next}
+
+
+def urgency(due, today=None):
+    days = (due - (today or date.today())).days
+    if days < 0:
+        return "overdue"
+    if days <= 3:
+        return "urgent"
+    if days <= 14:
+        return "soon"
+    return "later"
+
+
+def up_next(limit=6):
+    """For the header on every page: the next open items (kept schools only) and
+    how many are overdue / due within 3 days / within 14 days."""
+    items = timeline_items()
+    for item in items:
+        item["urgency"] = urgency(item["date"])
+    counts = {u: sum(1 for i in items if i["urgency"] == u)
+              for u in ("overdue", "urgent", "soon")}
+    return {"items": items[:limit], "counts": counts, "total": len(items)}
 
 
 @bp.route("/login", methods=["GET", "POST"])
