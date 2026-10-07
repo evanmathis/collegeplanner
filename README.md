@@ -39,11 +39,16 @@ git clone https://github.com/evanmathis/collegeplanner.git
 cd collegeplanner
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 
-flask --app planner seed           # loads the schools and deadlines from data/
-flask --app planner run --debug    # open http://127.0.0.1:5000
+python -m flask --app planner seed          # loads the schools and deadlines from data/
+python -m flask --app planner run --debug   # open http://127.0.0.1:5000
 ```
+
+Use `python -m flask`, not plain `flask`: if Flask is also installed outside the
+virtualenv (for example by Homebrew), plain `flask` can run that copy, which can't see
+this app's packages and reports `No module named 'flask_sqlalchemy'` or
+`No such command 'seed'`.
 
 The database is `instance/planner.db`. Delete it to start over. Running `seed`
 again is safe: it only adds what's missing and never overwrites Cian's own
@@ -56,7 +61,7 @@ Run the tests with `pytest`.
 `data/schools.csv` has one row per school (deadlines for the fall 2027 class, checked
 2026-10-07), `data/suggestions.csv` and `data/more_schools.csv` (notes in `data/more_schools_notes.md`) have other schools to decide on, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions). `data/README.md`
 summarizes the shared deadlines. To update the data, edit the CSVs and run
-`flask --app planner seed` again.
+`python -m flask --app planner seed` again.
 
 ## Put it on DreamHost
 
