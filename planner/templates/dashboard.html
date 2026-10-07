@@ -11,7 +11,7 @@
 </div>
 
 {% if undecided %}
-<p class="decide">{{ undecided }} more schools are waiting for a keep or remove decision. <a href="{{ url_for('planner.schools') }}#deciding">Look through them</a>.</p>
+<p class="decide"><span>{{ undecided }} more schools are waiting for a keep or remove decision.</span> <a class="btn small" href="{{ url_for('planner.schools') }}#deciding">Look through them</a></p>
 {% endif %}
 
 {% if overdue %}
