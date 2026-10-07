@@ -5,9 +5,9 @@ from datetime import date
 import pytest
 
 from planner import create_app, db
-from planner.models import Deadline, Question, School, Task
-from planner.seed import (DATA_DIR, import_more_schools, import_schools, import_suggestions,
-                          import_tasks, parse_dates)
+from planner.models import Deadline, Link, Question, School, Task
+from planner.seed import (DATA_DIR, import_more_schools, import_school_details, import_schools,
+                          import_suggestions, import_tasks, parse_dates)
 
 
 @pytest.fixture
@@ -34,6 +34,7 @@ def seed(app):
         import_suggestions(os.path.join(DATA_DIR, "suggestions.csv"))
         import_tasks(os.path.join(DATA_DIR, "tasks.csv"))
         import_more_schools(os.path.join(DATA_DIR, "more_schools.csv"))
+        import_school_details(os.path.join(DATA_DIR, "school_details.csv"))
 
 
 def test_parse_dates_reuses_year():
@@ -201,3 +202,19 @@ def test_calendar_alarms_two_weeks_one_week_then_daily(tmp_path):
     due = start.date()
     assert [(due - f.date()).days for f in fire] == [14, 7, 6, 5, 4, 3, 2, 1, 0]
     assert all(f.hour == 9 and f.minute == 0 for f in fire)
+
+
+def test_us_school_details_and_links(app):
+    from collections import Counter
+    seed(app)
+    seed(app)
+    with app.app_context():
+        ucsd = School.query.filter_by(name="UC San Diego").one()
+        assert len(ucsd.links) == 3 and ucsd.cost and ucsd.city.endswith("CA")
+        assert any(d.due_date == date(2026, 11, 30) for d in ucsd.deadlines)
+        fresno = School.query.filter_by(name="CSU Fresno").one()
+        assert fresno.music_requirement.startswith("Must first audition")  # original kept
+        assert {l.label for l in fresno.links} >= {"Composition program page",
+                                                   "Financial aid / net price calculator"}
+        dupes = Counter((l.school_id, l.url) for l in Link.query)
+        assert max(dupes.values()) == 1

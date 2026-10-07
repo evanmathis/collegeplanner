@@ -53,3 +53,4 @@ The Oct 31 dates in `tasks.csv` are my suggested targets, not school deadlines. 
 - `schools.csv`: one row per school, ready to load into the planner's database.
 - `suggestions.csv`: other public schools with strong composition programs.
 - `tasks.csv`: high school and application steps with target dates.
+- `school_details.csv`: extra facts and links for the US schools (program, admissions/audition and financial aid pages, cost, aid, city), checked 2026-10-07; `unconfirmed` says what still needs confirming.

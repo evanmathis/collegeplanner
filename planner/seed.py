@@ -117,7 +117,7 @@ def import_schools(path):
             school.degree = row["degree_for_composition"]
             school.app_platform = row["app_platform"]
             school.music_requirement = row["music_requirement"]
-            school.program_link = row["program_link"]
+            school.program_link = school.program_link or row["program_link"]
             school.data_status = row["status"]
             if not school.notes:
                 school.notes = row["notes"]
@@ -134,8 +134,8 @@ def import_schools(path):
                     stats["deadlines"] += add_deadline(
                         school, "Financial aid priority date", due, "Financial aid")
 
-            if row["program_link"] and not Link.query.filter_by(
-                    school_id=school.id, url=row["program_link"]).first():
+            # Only for new schools: school_details.csv may have replaced this link since.
+            if created and row["program_link"]:
                 db.session.add(Link(school=school, label="Music program / admissions page",
                                     url=row["program_link"]))
                 stats["links"] += 1
@@ -199,7 +199,7 @@ def import_more_schools(path):
             school.cost = row["rough_cost_usd_per_year"]
             school.us_aid = row["us_aid"]
             school.abroad_steps = row["what_cian_needs_abroad"]
-            school.program_link = row["program_link"]
+            school.program_link = school.program_link or row["program_link"]
             school.data_status = row["confidence"]
             if not school.notes:
                 school.notes = row["why"]
@@ -208,8 +208,8 @@ def import_more_schools(path):
                 school, row["app_deadline"], "Application", "Application due", label=True)
             stats["deadlines"] += deadlines_from_column(
                 school, row["music_requirement"], "Music", "Audition / exam")
-            if row["program_link"] and not Link.query.filter_by(
-                    school_id=school.id, url=row["program_link"]).first():
+            # Only for new schools: school_details.csv may have replaced this link since.
+            if created and row["program_link"]:
                 db.session.add(Link(school=school, label="Program / admissions page",
                                     url=row["program_link"]))
                 stats["links"] += 1
@@ -256,8 +256,11 @@ def import_school_details(path):
             new_program = (row.get("program_link") or "").strip()
             if new_program and school.program_link and new_program != school.program_link:
                 # The imported page moved; repoint the link we created for it.
-                Link.query.filter_by(school_id=school.id, url=school.program_link).update(
-                    {"url": new_program, "label": "Composition program page"})
+                old = Link.query.filter_by(school_id=school.id, url=school.program_link)
+                if Link.query.filter_by(school_id=school.id, url=new_program).first():
+                    old.delete()
+                else:
+                    old.update({"url": new_program, "label": "Composition program page"})
             fill("program_link", new_program, overwrite=True)
             fill("app_platform", row.get("app_route"))
             fill("app_deadline_note", row.get("app_deadline"))
