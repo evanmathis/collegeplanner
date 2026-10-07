@@ -68,28 +68,26 @@ Run the tests with `pytest`.
 summarizes the shared deadlines. To update the data, edit the CSVs and run
 `python -m flask --app planner seed` again.
 
-## Put it on DreamHost
+## Put it online
 
-These steps use DreamHost's Passenger support for Python and the MySQL database
-`schoolpicker` (user `three5`, hostname `schoolpicker.zonelab.app`). The examples use
-`college.zonelab.app` for the website; use whatever site name you pick.
+DreamHost no longer runs Python apps on shared hosting: its knowledge base lists
+Passenger as "Not supported on DreamHost servers", and Python apps now need a **Managed
+VPS or Dedicated** plan, using its *Proxy Server* setting and Gunicorn. Find your plan
+under *Billing & Account* in the DreamHost panel. Your MySQL database works with
+either option below. The examples use `college.zonelab.app` for the website.
 
-1. **Website with Passenger.** In the DreamHost panel, go to *Websites*, add or open the
-   site (for example `college.zonelab.app`), and in its settings turn on
-   **Passenger (Ruby/NodeJS/Python apps only)**. The web directory must end in `/public`
-   (for example `/home/USER/college.zonelab.app/public`). Note the SFTP/SSH user that owns
-   the site and make sure that user has shell (SSH) access.
-2. **Get the code.** SSH in as that user and put the code in the site folder (one level
-   above `public`). The folder isn't empty, so fetch into it rather than cloning:
+### Option A: DreamHost Managed VPS
+
+1. **Move the site onto the VPS.** In the panel, open *Websites*, add or open
+   `college.zonelab.app` (fully hosted), and pick the VPS as its server. Note the site's
+   SSH user (it needs shell access).
+2. **Proxy.** Open *Servers & Usage*, click **Manage** next to the VPS, scroll to
+   **Proxy Server**, choose `college.zonelab.app`, leave the directory blank, enter port
+   `8000`, and click **Add Proxy**.
+3. **Get the code.** SSH in as the site user:
    ```bash
-   cd ~/college.zonelab.app
-   git init
-   git remote add origin https://github.com/evanmathis/collegeplanner.git
-   git fetch origin
-   git checkout -t origin/main
-   ```
-3. **Virtualenv.** Passenger's entry point (`passenger_wsgi.py`) looks for it at `venv/`:
-   ```bash
+   git clone https://github.com/evanmathis/collegeplanner.git ~/collegeplanner
+   cd ~/collegeplanner
    python3 --version            # needs 3.9 or newer
    python3 -m venv venv
    venv/bin/pip install -r requirements.txt
@@ -116,17 +114,53 @@ These steps use DreamHost's Passenger support for Python and the MySQL database
    ```
    Use the hostname, never `localhost`. A new MySQL hostname can take 5-10 minutes to start
    working.
-6. **Start it.** `mkdir -p tmp && touch tmp/restart.txt`, then open the site.
-7. **HTTPS.** In the panel, add a free Let's Encrypt certificate for the site (*Websites →
-   Secure Certificates*). Then open the Calendar page over `https://` to copy the
-   subscription address.
+6. **Keep it running** (DreamHost's "Using linger with Gunicorn" steps):
+   ```bash
+   loginctl enable-linger
+   mkdir -p ~/.config/systemd/user
+   cat > ~/.config/systemd/user/planner.service <<'UNIT'
+   [Unit]
+   Description=College Planner
+   After=network.target
+
+   [Service]
+   WorkingDirectory=%h/collegeplanner
+   ExecStart=%h/collegeplanner/venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8000 wsgi:app
+   Restart=on-failure
+
+   [Install]
+   WantedBy=default.target
+   UNIT
+   systemctl --user enable --now planner
+   systemctl --user status planner
+   ```
+7. **HTTPS.** Add a free Let's Encrypt certificate for the site (*Websites → Secure
+   Certificates*). The proxy uses it automatically. Then open the Calendar page over
+   `https://` to copy the subscription address.
 
 To deploy changes later: `git pull`, `venv/bin/pip install -r requirements.txt` if it
 changed, `venv/bin/python -m flask --app planner seed` if the data changed, then
-`touch tmp/restart.txt`.
+`systemctl --user restart planner`. Logs: `journalctl --user -u planner`.
 
-If the site shows an error, check `~/logs/college.zonelab.app/http/error.log`, and run
-`check-db` first.
+### Option B: PythonAnywhere (no VPS)
+
+PythonAnywhere runs Flask apps on its paid plans, which include a MySQL database. Free
+accounts can't connect to outside databases. Two ways to use it:
+
+- **Simplest:** use PythonAnywhere's own MySQL. On its *Databases* tab, create a database,
+  then put its host, user, password and name in the `DB_*` lines of `.env`.
+- **Keep the DreamHost database:** PythonAnywhere's addresses aren't fixed, so DreamHost's
+  *Allowable Hosts* would need `%` (any address, protected only by the password). Not
+  recommended.
+
+Setup: clone the repo in a PythonAnywhere Bash console, make the virtualenv and `.env` as
+in steps 3-5, add a *Manual configuration* web app pointed at the virtualenv, and make its
+WSGI file:
+```python
+import sys
+sys.path.insert(0, "/home/YOURNAME/collegeplanner")
+from wsgi import app as application
+```
 
 ### Reaching the database from your own computer (optional)
 
@@ -142,6 +176,6 @@ the website loses access. Then put the same `DB_*` lines in a `.env` on your Mac
 ```
 planner/            the app (models.py, views.py, seed.py, templates/, static/)
 data/               school data loaded by `flask --app planner seed`
-passenger_wsgi.py   DreamHost entry point
+wsgi.py             entry point for the live site (gunicorn wsgi:app)
 tests/              pytest tests
 ```
