@@ -39,7 +39,7 @@ class School(db.Model):
     name = db.Column(db.String(120), unique=True, nullable=False)
     system = db.Column(db.String(40), default="")
     degree = db.Column(db.String(255), default="")
-    app_platform = db.Column(db.String(80), default="")
+    app_platform = db.Column(db.String(255), default="")
     music_requirement = db.Column(db.Text, default="")
     program_link = db.Column(db.String(500), default="")
     notes = db.Column(db.Text, default="")
@@ -47,11 +47,11 @@ class School(db.Model):
     fee_waiver = db.Column(db.String(30), default="Not checked")
     # How well the imported facts were checked ("verified", "partly verified", ...).
     data_status = db.Column(db.String(40), default="")
-    country = db.Column(db.String(80), default="")
-    city = db.Column(db.String(80), default="")
+    country = db.Column(db.String(255), default="")
+    city = db.Column(db.String(255), default="")
     school_type = db.Column(db.String(20), default="")  # public / private
-    language = db.Column(db.String(80), default="")
-    entry_term = db.Column(db.String(80), default="")
+    language = db.Column(db.String(255), default="")
+    entry_term = db.Column(db.String(255), default="")
     cost = db.Column(db.Text, default="")
     us_aid = db.Column(db.Text, default="")
     # Extra steps for schools outside the US (diploma recognition, visa, entrance exam trip).
@@ -132,7 +132,7 @@ class Scholarship(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     provider = db.Column(db.String(255), default="")
-    amount = db.Column(db.String(80), default="")
+    amount = db.Column(db.String(255), default="")
     deadline = db.Column(db.Date, nullable=True)
     url = db.Column(db.String(500), default="")
     requirements = db.Column(db.Text, default="")

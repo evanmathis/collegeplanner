@@ -81,7 +81,6 @@ FORMS = {
         ("notes", "Notes", "textarea", None),
     ]),
 }
-REQUIRED = {"name", "title", "label", "url", "question", "due_date"}
 
 
 # ---------- login and CSRF ----------
@@ -424,7 +423,11 @@ def apply_form(obj, fields, form):
             value = raw.strip()
             if ftype == "select" and value not in choices:
                 value = list(choices)[0]
-        if name in REQUIRED and value in (None, ""):
+        column = getattr(type(obj), name)
+        limit = getattr(column.type, "length", None)
+        if limit and isinstance(value, str) and len(value) > limit:
+            errors.append(f"{label} is too long (at most {limit} characters).")
+        if not column.nullable and ftype != "checkbox" and value in (None, ""):
             errors.append(f"{label} is required.")
         setattr(obj, name, value)
     return errors

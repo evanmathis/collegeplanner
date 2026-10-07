@@ -70,44 +70,72 @@ summarizes the shared deadlines. To update the data, edit the CSVs and run
 
 ## Put it on DreamHost
 
-These steps use DreamHost's Passenger support for Python.
+These steps use DreamHost's Passenger support for Python and the MySQL database
+`schoolpicker` (user `three5`, hostname `schoolpicker.zonelab.app`). The examples use
+`college.zonelab.app` for the website; use whatever site name you pick.
 
-1. **Domain.** In the DreamHost panel, go to *Websites → Manage Websites*, open the
-   domain or subdomain (for example `college.yourdomain.com`), and under
-   *Additional settings* turn on **Passenger (Ruby/NodeJS/Python apps only)**. Note the
-   shell user that owns the site.
-2. **MySQL database.** Under *MySQL Databases*, create a database (e.g. `collegeplanner`)
-   and a user. Note the hostname (like `mysql.yourdomain.com`), user and password.
-3. **Get the code.** SSH in as the site user and clone into the domain folder:
+1. **Website with Passenger.** In the DreamHost panel, go to *Websites*, add or open the
+   site (for example `college.zonelab.app`), and in its settings turn on
+   **Passenger (Ruby/NodeJS/Python apps only)**. The web directory must end in `/public`
+   (for example `/home/USER/college.zonelab.app/public`). Note the SFTP/SSH user that owns
+   the site and make sure that user has shell (SSH) access.
+2. **Get the code.** SSH in as that user and put the code in the site folder (one level
+   above `public`). The folder isn't empty, so fetch into it rather than cloning:
    ```bash
-   cd ~/college.yourdomain.com
-   git clone https://github.com/evanmathis/collegeplanner.git .
+   cd ~/college.zonelab.app
+   git init
+   git remote add origin https://github.com/evanmathis/collegeplanner.git
+   git fetch origin
+   git checkout -t origin/main
    ```
-   (If the folder isn't empty, clone elsewhere and move the files in.)
-4. **Virtualenv.** Passenger looks for it at `venv/` in that folder:
+3. **Virtualenv.** Passenger's entry point (`passenger_wsgi.py`) looks for it at `venv/`:
    ```bash
+   python3 --version            # needs 3.9 or newer
    python3 -m venv venv
    venv/bin/pip install -r requirements.txt
    ```
-5. **Settings.** `cp .env.example .env`, then edit `.env`:
-   - `SECRET_KEY`: any long random string (`python3 -c "import secrets; print(secrets.token_hex(32))"`)
-   - `PLANNER_PASSWORD`: the password Cian will type to get in. **Set this**: without it anyone with the URL can see and edit the plan.
-   - `DATABASE_URL`: `mysql+pymysql://USER:PASSWORD@mysql.yourdomain.com/collegeplanner?charset=utf8mb4`
-   - `CALENDAR_TOKEN`: another long random string. It's the secret part of the calendar
-     subscription address (calendar apps can't log in). Change it to cut off old subscriptions.
-6. **Create tables and load the schools:**
-   ```bash
-   set -a; source .env; set +a
-   venv/bin/flask --app planner seed
+4. **Settings.** `cp .env.example .env`, `chmod 600 .env`, then edit it (`nano .env`):
    ```
-7. **Start it.** `mkdir -p tmp && touch tmp/restart.txt`, then open the site.
-   Turn on HTTPS for the domain in the panel (free Let's Encrypt certificate) so the
-   password isn't sent in the clear.
+   SECRET_KEY=...            # python3 -c "import secrets; print(secrets.token_hex(32))"
+   PLANNER_PASSWORD=...      # what Cian types to get in; without it anyone with the URL can edit
+   CALENDAR_TOKEN=...        # another long random string; secret part of the calendar feed URL
+   DB_HOST=schoolpicker.zonelab.app
+   DB_USER=three5
+   DB_PASSWORD='your MySQL password'
+   DB_NAME=schoolpicker
+   ```
+   Put the password in single quotes. It never needs escaping this way, even with `@`, `:`,
+   `/` or `#` in it. (A single `DATABASE_URL=mysql+pymysql://...` line still works too, but
+   then special characters in the password must be URL-encoded.) The website and every
+   `flask` command read `.env` on their own.
+5. **Check the connection, then load the data:**
+   ```bash
+   venv/bin/python -m flask --app planner check-db   # says what's wrong, never prints the password
+   venv/bin/python -m flask --app planner seed       # creates the tables, loads schools and scholarships
+   venv/bin/python -m flask --app planner check-db   # should end with "All good."
+   ```
+   Use the hostname, never `localhost`. A new MySQL hostname can take 5-10 minutes to start
+   working.
+6. **Start it.** `mkdir -p tmp && touch tmp/restart.txt`, then open the site.
+7. **HTTPS.** In the panel, add a free Let's Encrypt certificate for the site (*Websites →
+   Secure Certificates*). Then open the Calendar page over `https://` to copy the
+   subscription address.
 
 To deploy changes later: `git pull`, `venv/bin/pip install -r requirements.txt` if it
-changed, then `touch tmp/restart.txt`.
+changed, `venv/bin/python -m flask --app planner seed` if the data changed, then
+`touch tmp/restart.txt`.
 
-If the site shows an error, check `~/logs/college.yourdomain.com/http/error.log`.
+If the site shows an error, check `~/logs/college.zonelab.app/http/error.log`, and run
+`check-db` first.
+
+### Reaching the database from your own computer (optional)
+
+DreamHost only lets its own servers into MySQL by default (the user's *Allowable Hosts* is
+`%.dreamhost.com`). To run `check-db` or `seed` from your Mac against the DreamHost
+database, open *MySQL Databases* in the panel, click `three5`, and add your home IP address
+(search "what is my IP") on a new line under **Allowable Hosts**. Keep `%.dreamhost.com`, or
+the website loses access. Then put the same `DB_*` lines in a `.env` on your Mac. If
+`check-db` reports error 1130, 1045 or 2003 from home, this setting is the usual cause.
 
 ## Layout
 

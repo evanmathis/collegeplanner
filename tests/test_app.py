@@ -305,3 +305,37 @@ def test_old_scholarship_statuses_are_renamed(tmp_path):
     app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": uri})
     with app.app_context():
         assert Scholarship.query.one().status == "Interested"
+
+
+def test_task_without_date_and_too_long_text(app, client):
+    seed(app)
+    token = csrf(client)
+    client.post("/task/new", data={"_csrf": token, "title": "Ask about portfolio format",
+                                   "category": "General"})
+    html = client.post("/task/new", data={"_csrf": token, "title": "x" * 300,
+                                          "category": "General"}).get_data(as_text=True)
+    assert "too long" in html
+    html = client.post("/deadline/new", data={"_csrf": token, "title": "No date",
+                                              "kind": "Other"}).get_data(as_text=True)
+    assert "Due date is required" in html
+    with app.app_context():
+        assert Task.query.filter_by(title="Ask about portfolio format").count() == 1
+        assert Deadline.query.filter_by(title="No date").count() == 0
+
+
+def test_database_settings_from_parts(monkeypatch, tmp_path):
+    from planner import database_url
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("DB_HOST", "schoolpicker.example.com")
+    monkeypatch.setenv("DB_USER", "three5")
+    monkeypatch.setenv("DB_PASSWORD", "p@ss:w/rd#1")
+    monkeypatch.setenv("DB_NAME", "schoolpicker")
+    url = database_url(str(tmp_path))
+    assert url.password == "p@ss:w/rd#1" and url.host == "schoolpicker.example.com"
+    assert "p@ss" not in url.render_as_string(hide_password=True)
+    assert url.drivername == "mysql+pymysql" and url.query["charset"] == "utf8mb4"
+
+
+def test_check_db_on_sqlite(app):
+    result = app.test_cli_runner().invoke(args=["check-db"])
+    assert result.exit_code == 0 and "Tables OK" in result.output
