@@ -22,7 +22,7 @@
   {%- set days = (d - today).days -%}
   <span class="when {{ 'overdue' if days < 0 else ('soon' if days <= 14 else '') }}">
     {{ d.strftime('%a %b %-d, %Y') }}
-    <small>{% if days < 0 %}{{ -days }} days ago{% elif days == 0 %}today{% elif days == 1 %}tomorrow{% else %}in {{ days }} days{% endif %}</small>
+    <small>{% if days == -1 %}yesterday{% elif days < 0 %}{{ -days }} days ago{% elif days == 0 %}today{% elif days == 1 %}tomorrow{% else %}in {{ days }} days{% endif %}</small>
   </span>
 {%- endmacro %}
 
