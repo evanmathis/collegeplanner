@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Schools{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Schools</h1>
+  <a class="btn" href="{{ url_for('planner.edit', kind='school') }}">Add school</a>
+</div>
+<table class="grid">
+  <thead><tr><th>School</th><th>Program</th><th>Status</th><th>Next deadline</th><th>Left to do</th></tr></thead>
+  <tbody>
+  {% for s in active %}
+    {% set nd = s.next_deadline() %}
+    <tr>
+      <td><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a> <small class="muted">{{ s.system }}</small></td>
+      <td><small>{{ s.degree }}</small></td>
+      <td><span class="status status-{{ s.status|lower }}">{{ s.status }}</span></td>
+      <td>{% if nd %}{{ nd.due_date.strftime('%b %-d, %Y') }}<br><small class="muted">{{ nd.title }}</small>{% else %}<span class="muted">none</span>{% endif %}</td>
+      <td>{{ s.open_items()|length }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">No schools yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if ideas %}
+<h2>Ideas to consider</h2>
+<p class="muted">Schools suggested for composition. Open one and change its status to add it to the list.</p>
+<ul class="ideas">
+  {% for s in ideas %}
+  <li><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a> <small class="muted">{{ s.system }}</small><br><small>{{ s.notes }}</small></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import timeline_row with context %}
+{% block title %}Timeline{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Timeline</h1>
+  <div>
+    <a class="btn" href="{{ url_for('planner.edit', kind='deadline') }}">Add deadline</a>
+    <a class="btn" href="{{ url_for('planner.edit', kind='task') }}">Add task</a>
+  </div>
+</div>
+<p>
+  {% if show_done %}<a href="{{ url_for('planner.timeline') }}">Hide finished items</a>
+  {% else %}<a href="{{ url_for('planner.timeline', done=1) }}">Show finished items too</a>{% endif %}
+  <span class="muted">· Deadlines, dated tasks and scholarship deadlines, in date order.</span>
+</p>
+{% for month, items in months.items() %}
+<h2>{{ month }}</h2>
+<ul class="items">{% for i in items %}{{ timeline_row(i) }}{% endfor %}</ul>
+{% else %}
+<p class="muted">Nothing on the timeline yet.</p>
+{% endfor %}
+{% endblock %}

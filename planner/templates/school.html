@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import toggle, actions, when with context %}
+{% block title %}{{ school.name }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ school.name }} <span class="status status-{{ school.status|lower }}">{{ school.status }}</span></h1>
+  {{ actions('school', school) }}
+</div>
+<dl class="facts">
+  {% if school.degree %}<dt>Program</dt><dd>{{ school.degree }}</dd>{% endif %}
+  {% if school.app_platform %}<dt>Apply through</dt><dd>{{ school.app_platform }}</dd>{% endif %}
+  {% if school.music_requirement %}<dt>Music requirement</dt><dd>{{ school.music_requirement }}</dd>{% endif %}
+  <dt>Fee waiver</dt><dd>{{ school.fee_waiver }}</dd>
+  {% if school.program_link %}<dt>Program page</dt><dd><a href="{{ school.program_link }}" target="_blank" rel="noopener">{{ school.program_link }}</a></dd>{% endif %}
+  {% if school.notes %}<dt>Notes</dt><dd>{{ school.notes }}</dd>{% endif %}
+  {% if school.data_status %}<dt>Info checked</dt><dd class="muted">{{ school.data_status }}</dd>{% endif %}
+</dl>
+
+<section>
+  <div class="head"><h2>Deadlines</h2><a class="btn small" href="{{ url_for('planner.edit', kind='deadline', f_school_id=school.id, next=request.path) }}">Add</a></div>
+  <ul class="items">
+  {% for d in school.deadlines %}
+    <li class="item {{ 'done' if d.done }}">{{ toggle('deadline', d) }}
+      <div class="body"><div class="line1"><span class="tag tag-{{ d.kind|lower|replace(' ', '-') }}">{{ d.kind }}</span> {{ d.title }}</div>
+        {% if d.notes %}<div class="notes">{{ d.notes }}</div>{% endif %}{{ actions('deadline', d) }}</div>
+      {{ when(d.due_date) }}</li>
+  {% else %}<li class="muted">No deadlines yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <div class="head"><h2>Tasks</h2><a class="btn small" href="{{ url_for('planner.edit', kind='task', f_school_id=school.id, next=request.path) }}">Add</a></div>
+  <ul class="items">
+  {% for t in school.tasks %}
+    <li class="item {{ 'done' if t.done }}">{{ toggle('task', t) }}
+      <div class="body"><div class="line1"><span class="tag">{{ t.category }}</span> {{ t.title }}</div>
+        {% if t.notes %}<div class="notes">{{ t.notes }}</div>{% endif %}{{ actions('task', t) }}</div>
+      {% if t.due_date %}{{ when(t.due_date) }}{% endif %}</li>
+  {% else %}<li class="muted">No tasks yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <div class="head"><h2>Links</h2><a class="btn small" href="{{ url_for('planner.edit', kind='link', f_school_id=school.id, next=request.path) }}">Add</a></div>
+  <ul class="plain">
+  {% for l in school.links %}
+    <li><a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a> {{ actions('link', l) }}</li>
+  {% else %}<li class="muted">No links yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <div class="head"><h2>Questions</h2><a class="btn small" href="{{ url_for('planner.edit', kind='question', f_school_id=school.id, next=request.path) }}">Ask</a></div>
+  <ul class="items">
+  {% for q in school.questions %}
+    <li class="item {{ 'done' if q.done }}">{{ toggle('question', q, 'Answered', 'Mark answered') }}
+      <div class="body"><div class="line1">{{ q.question }}</div>
+        {% if q.answer %}<div class="notes"><b>Answer:</b> {{ q.answer }}</div>{% endif %}{{ actions('question', q) }}</div></li>
+  {% else %}<li class="muted">No questions yet.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

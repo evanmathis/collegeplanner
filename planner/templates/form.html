@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ 'Add' if is_new else 'Edit' }} {{ title|lower }}{% endblock %}
+{% block content %}
+<h1>{{ 'Add' if is_new else 'Edit' }} {{ title|lower }}</h1>
+<form method="post" class="form">
+  {{ csrf() }}<input type="hidden" name="next" value="{{ next }}">
+  {% for name, label, type, choices in fields %}
+    {% set value = obj[name] %}
+    {% if type == 'checkbox' %}
+      <label class="check-row"><input type="checkbox" name="{{ name }}" {{ 'checked' if value }}> {{ label }}</label>
+    {% else %}
+    <label>{{ label }}
+      {% if type == 'textarea' %}
+        <textarea name="{{ name }}" rows="4">{{ value or '' }}</textarea>
+      {% elif type == 'select' %}
+        <select name="{{ name }}">{% for c in choices %}<option {{ 'selected' if c == value }}>{{ c }}</option>{% endfor %}</select>
+      {% elif type == 'school' %}
+        <select name="{{ name }}">
+          <option value="">All schools / general</option>
+          {% for s in schools %}<option value="{{ s.id }}" {{ 'selected' if s.id == value }}>{{ s.name }}</option>{% endfor %}
+        </select>
+      {% elif type == 'date' %}
+        <input type="date" name="{{ name }}" value="{{ value.isoformat() if value and value.isoformat else (value or '') }}">
+      {% else %}
+        <input type="{{ 'url' if type == 'url' else 'text' }}" name="{{ name }}" value="{{ value or '' }}">
+      {% endif %}
+    </label>
+    {% endif %}
+  {% endfor %}
+  <div class="buttons">
+    <button class="btn primary">Save</button>
+    <a href="{{ next or url_for('planner.dashboard') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

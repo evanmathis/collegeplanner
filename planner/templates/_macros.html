@@ -1,0 +1,42 @@
+{% macro csrf() %}<input type="hidden" name="_csrf" value="{{ csrf_token }}">{% endmacro %}
+
+{% macro toggle(kind, obj, label_on="Done", label_off="Mark done") %}
+<form method="post" action="{{ url_for('planner.toggle', kind=kind, id=obj.id) }}" class="inline">
+  {{ csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+  <button class="check {{ 'on' if obj.done }}" title="{{ label_on if obj.done else label_off }}">{{ '✓' if obj.done else '' }}</button>
+</form>
+{% endmacro %}
+
+{% macro actions(kind, obj) %}
+<span class="actions">
+  <a href="{{ url_for('planner.edit', kind=kind, id=obj.id, next=request.full_path) }}">Edit</a>
+  <form method="post" action="{{ url_for('planner.delete', kind=kind, id=obj.id) }}" class="inline"
+        onsubmit="return confirm('Delete this {{ kind }}?')">
+    {{ csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+    <button class="link danger">Delete</button>
+  </form>
+</span>
+{% endmacro %}
+
+{% macro when(d) -%}
+  {%- set days = (d - today).days -%}
+  <span class="when {{ 'overdue' if days < 0 else ('soon' if days <= 14 else '') }}">
+    {{ d.strftime('%a %b %-d, %Y') }}
+    <small>{% if days < 0 %}{{ -days }} days ago{% elif days == 0 %}today{% elif days == 1 %}tomorrow{% else %}in {{ days }} days{% endif %}</small>
+  </span>
+{%- endmacro %}
+
+{% macro timeline_row(item) %}
+<li class="item {{ 'done' if item.done }}">
+  {% if item.kind in ('deadline', 'task') %}{{ toggle(item.kind, item.obj) }}{% else %}<span class="check ghost">$</span>{% endif %}
+  <div class="body">
+    <div class="line1">
+      <span class="tag tag-{{ item.label|lower|replace(' ', '-') }}">{{ item.label }}</span>
+      {% if item.kind == 'scholarship' %}<a href="{{ url_for('planner.aid') }}#scholarships">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+      {% if item.school %}<a class="school" href="{{ url_for('planner.school_detail', id=item.school.id) }}">{{ item.school.name }}</a>{% elif item.kind != 'scholarship' %}<span class="school muted">All schools</span>{% endif %}
+    </div>
+    {% if item.obj.notes %}<div class="notes">{{ item.obj.notes }}</div>{% endif %}
+  </div>
+  {{ when(item.date) }}
+</li>
+{% endmacro %}

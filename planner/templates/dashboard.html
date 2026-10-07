@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_macros.html" import timeline_row with context %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1>What's next</h1>
+<div class="stats">
+  <a href="{{ url_for('planner.timeline') }}"><b>{{ soon|length }}</b> due in the next 30 days</a>
+  <a href="{{ url_for('planner.timeline') }}" class="{{ 'bad' if overdue }}"><b>{{ overdue|length }}</b> overdue</a>
+  <a href="{{ url_for('planner.tasks') }}"><b>{{ open_tasks }}</b> open tasks</a>
+  <a href="{{ url_for('planner.questions') }}"><b>{{ open_questions }}</b> open questions</a>
+</div>
+
+{% if overdue %}
+<h2>Overdue</h2>
+<ul class="items">{% for i in overdue %}{{ timeline_row(i) }}{% endfor %}</ul>
+{% endif %}
+
+<h2>Next 30 days</h2>
+{% if soon %}
+<ul class="items">{% for i in soon %}{{ timeline_row(i) }}{% endfor %}</ul>
+{% else %}
+<p class="muted">Nothing due in the next 30 days. See the <a href="{{ url_for('planner.timeline') }}">full timeline</a>.</p>
+{% endif %}
+
+<h2>Schools</h2>
+{% if schools %}
+<table class="grid">
+  <thead><tr><th>School</th><th>Status</th><th>Next deadline</th><th>Progress</th></tr></thead>
+  <tbody>
+  {% for s in schools %}
+    {% set done, total = s.progress() %}
+    {% set nd = s.next_deadline() %}
+    <tr>
+      <td><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a></td>
+      <td><span class="status status-{{ s.status|lower }}">{{ s.status }}</span></td>
+      <td>{% if nd %}{{ nd.title }} <small class="muted">{{ nd.due_date.strftime('%b %-d') }}</small>{% else %}<span class="muted">none</span>{% endif %}</td>
+      <td><progress max="{{ total or 1 }}" value="{{ done }}"></progress> <small>{{ done }}/{{ total }}</small></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No schools yet. <a href="{{ url_for('planner.edit', kind='school') }}">Add one</a>, or run <code>flask --app planner seed</code> to load the list.</p>
+{% endif %}
+{% endblock %}
