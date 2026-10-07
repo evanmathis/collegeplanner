@@ -55,7 +55,27 @@ waivers and scholarship statuses all stay as he set them.
   tasks, and fee-waiver status per school.
 - **Questions**: log anything you're unsure about and write down the answer.
 - **Calendar**: puts due dates on Apple Calendar, Google or Outlook (below).
+- **Scoreboard**: the points game (below).
 - Light and dark mode follow your Mac or phone automatically.
+
+## Points game
+
+Cian earns a share of a cash pot ($250 to start) for finishing deadlines and tasks on time.
+
+- **Logging in:** everyone uses the shared `PLANNER_PASSWORD` and picks who they are
+  (Cian, Evan or Amy). Evan and Amy also type the `PARENT_PIN`; Cian never needs it.
+- **Points:** each deadline and task has a point range by importance (an application
+  deadline is 15-25, a General task 1-3). Its share of the pot is its top points out of
+  everyone's total, so the Scoreboard shows the dollars riding on each item.
+- **On time:** Cian ticks an item done; if that's on or before the due date, it counts as
+  on time even if a parent verifies it later. It then waits for Evan or Amy to **Verify**
+  (choosing points within the range) or **Send back** with a note.
+- **Missed:** anything not done by its due date shows under "Got away". Money never goes
+  negative. Parents can **Excuse** an item to take it out of the game.
+- **Game settings** (parents only): pause and resume, change the pot or the date the game
+  counts from, and adjust every item's points. Everything parents do is in the Log.
+- **Payouts:** the app only keeps track. Record what you've paid on the Scoreboard.
+- Cian can add his own tasks; they start at 0 points until a parent gives them some.
 
 ## Due dates on your calendar
 
@@ -120,10 +140,12 @@ Run each block over SSH, one at a time, and compare with what it should print.
    nano .env
    ```
    Paste the first printed string as `SECRET_KEY` and the second as `CALENDAR_TOKEN`, pick
-   a `PLANNER_PASSWORD` for Cian, and type the MySQL password between the single quotes:
+   the shared `PLANNER_PASSWORD` and a `PARENT_PIN` only you and Amy know, and type the
+   MySQL password between the single quotes:
    ```
    SECRET_KEY=...
    PLANNER_PASSWORD=...
+   PARENT_PIN=...
    CALENDAR_TOKEN=...
    DB_HOST=schoolpicker.zonelab.app
    DB_USER=three5
@@ -162,6 +184,8 @@ cd ~/zonelab.app/collegeplanner && git pull
 venv/bin/pip install -r requirements.txt               # only if requirements.txt changed
 venv/bin/python -m flask --app planner seed            # only if the data changed
 ```
+New database columns are added automatically on the next page load. For the points game,
+add a `PARENT_PIN=...` line to `.env` (`nano .env`) the first time you update.
 
 **If something's wrong:**
 - Run `check-db` first. It says whether the host can't be reached, the hostname doesn't

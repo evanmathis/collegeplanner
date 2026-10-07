@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import toggle, actions, when, csrf with context %}
+{% from "_macros.html" import toggle, actions, when, csrf, vtag with context %}
 {% block title %}Paying for college{% endblock %}
 {% block content %}
 <h1>Paying for college</h1>
@@ -20,7 +20,7 @@
   <ul class="items">
   {% for d in aid_deadlines %}
     <li class="item {{ 'done' if d.done }}">{{ toggle('deadline', d) }}
-      <div class="body"><div class="line1">{{ d.title }} {% if d.school %}<a class="school" href="{{ url_for('planner.school_detail', id=d.school.id) }}">{{ d.school.name }}</a>{% else %}<span class="school muted">All schools</span>{% endif %}</div>
+      <div class="body"><div class="line1">{{ d.title }} {{ vtag(d) }} {% if d.school %}<a class="school" href="{{ url_for('planner.school_detail', id=d.school.id) }}">{{ d.school.name }}</a>{% else %}<span class="school muted">All schools</span>{% endif %}</div>
         {% if d.notes %}<div class="notes">{{ d.notes }}</div>{% endif %}</div>
       {{ when(d.due_date) }}</li>
   {% else %}<li class="muted">No aid deadlines yet.</li>{% endfor %}
@@ -32,7 +32,7 @@
   <ul class="items">
   {% for t in aid_tasks %}
     <li class="item {{ 'done' if t.done }}">{{ toggle('task', t) }}
-      <div class="body"><div class="line1">{{ t.title }}</div>{{ actions('task', t) }}</div>
+      <div class="body"><div class="line1">{{ t.title }} {{ vtag(t) }}</div>{{ actions('task', t) }}</div>
       {% if t.due_date %}{{ when(t.due_date) }}{% endif %}</li>
   {% else %}<li class="muted">No aid tasks yet.</li>{% endfor %}
   </ul>

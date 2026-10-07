@@ -7,7 +7,15 @@
 </form>
 {% endmacro %}
 
+{% macro vtag(obj) -%}
+  {%- if obj.verify_status == 'pending' and obj.done %}<span class="vtag pending">Waiting for a parent</span>
+  {%- elif obj.verify_status == 'verified' %}<span class="vtag verified">+{{ obj.verified_points }} pts</span>
+  {%- elif obj.points_max and not obj.done and not obj.excused %}<span class="vtag">{{ obj.points_min }}–{{ obj.points_max }} pts</span>{% endif %}
+  {%- if obj.verify_status == 'rejected' and not obj.done %}<div class="verify-note">Sent back by {{ obj.verified_by }}: {{ obj.verify_note or 'have another look' }}</div>{% endif %}
+{%- endmacro %}
+
 {% macro actions(kind, obj) %}
+{% if is_parent or not obj.points_max %}
 <span class="actions">
   <a href="{{ url_for('planner.edit', kind=kind, id=obj.id, next=request.full_path) }}">Edit</a>
   <form method="post" action="{{ url_for('planner.delete', kind=kind, id=obj.id) }}" class="inline"
@@ -16,6 +24,7 @@
     <button class="link danger">Delete</button>
   </form>
 </span>
+{% endif %}
 {% endmacro %}
 
 {% macro when(d) -%}
@@ -33,6 +42,7 @@
     <div class="line1">
       <span class="tag tag-{{ item.label|lower|replace(' ', '-') }}">{{ item.label }}</span>
       {% if item.kind == 'scholarship' %}<a href="{{ url_for('planner.scholarships', when='all') }}#s{{ item.obj.id }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+      {% if item.kind in ('deadline', 'task') %}{{ vtag(item.obj) }}{% endif %}
       {% if item.school %}<a class="school" href="{{ url_for('planner.school_detail', id=item.school.id) }}">{{ item.school.name }}</a>{% elif item.kind != 'scholarship' %}<span class="school muted">All schools</span>{% endif %}
     </div>
     {% if item.obj.notes %}<div class="notes">{{ item.obj.notes }}</div>{% endif %}

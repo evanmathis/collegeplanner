@@ -1,7 +1,7 @@
 import hmac
 import secrets
 from collections import OrderedDict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import (Blueprint, Response, abort, current_app, flash, redirect,
                    render_template, request, session, url_for)
@@ -44,7 +44,8 @@ FORMS = {
         ("school_id", "School", "school", None),
         ("kind", "Type", "select", DEADLINE_KINDS),
         ("notes", "Notes", "textarea", None),
-        ("done", "Done", "checkbox", None),
+        ("points_min", "Points, at least", "int", None),
+        ("points_max", "Points, at most (0 = not in the game)", "int", None),
     ]),
     "task": (Task, "Task", [
         ("title", "Task", "text", None),
@@ -52,7 +53,8 @@ FORMS = {
         ("school_id", "School", "school", None),
         ("category", "Category", "select", TASK_CATEGORIES),
         ("notes", "Notes", "textarea", None),
-        ("done", "Done", "checkbox", None),
+        ("points_min", "Points, at least", "int", None),
+        ("points_max", "Points, at most (0 = not in the game)", "int", None),
     ]),
     "link": (Link, "Link", [
         ("label", "Label", "text", None),
@@ -83,7 +85,40 @@ FORMS = {
 }
 
 
-# ---------- login and CSRF ----------
+# Fields only parents may set (the game's points).
+PARENT_ONLY = {"points_min", "points_max"}
+GAME_KINDS = ("deadline", "task")
+
+
+# ---------- login, roles and CSRF ----------
+
+def login_enabled():
+    return bool(current_app.config["PLANNER_PASSWORD"])
+
+
+def parent_names():
+    return [n.strip() for n in current_app.config["PARENT_NAMES"].split(",") if n.strip()]
+
+
+def current_user():
+    """{"name", "role"}; role is "parent" or "student". With no password set (running
+    on your own computer) everyone is a parent."""
+    if not login_enabled():
+        return {"name": "You", "role": "parent"}
+    return {"name": session.get("user", ""), "role": session.get("role", "")}
+
+
+def is_parent():
+    return current_user()["role"] == "parent"
+
+
+def require_parent():
+    if not is_parent():
+        abort(403, "Only a parent can do that.")
+
+
+def is_game_item(obj):
+    return isinstance(obj, (Deadline, Task)) and (obj.points_max or 0) > 0
 
 @bp.before_app_request
 def guard():
@@ -91,8 +126,7 @@ def guard():
     # because calendar apps can't log in.
     if request.endpoint in ("planner.login", "planner.calendar_feed", "static"):
         return None
-    password = current_app.config["PLANNER_PASSWORD"]
-    if password and not session.get("logged_in"):
+    if login_enabled() and not session.get("user"):
         return redirect(url_for("planner.login", next=request.full_path))
     if request.method == "POST":
         token = request.form.get("_csrf", "")
@@ -106,8 +140,8 @@ def inject_globals():
     if "_csrf" not in session:
         session["_csrf"] = secrets.token_urlsafe(32)
     return {"csrf_token": session["_csrf"], "today": date.today(),
-            "login_enabled": bool(current_app.config["PLANNER_PASSWORD"]),
-            "up_next": up_next}
+            "login_enabled": login_enabled(),
+            "up_next": up_next, "user": current_user(), "is_parent": is_parent()}
 
 
 def urgency(due, today=None):
@@ -122,26 +156,50 @@ def urgency(due, today=None):
 
 
 def up_next(limit=6):
-    """For the header on every page: the next open items (kept schools only) and
-    how many are overdue / due within 3 days / within 14 days."""
+    """For the header on every page: the next open items (kept schools only), how many
+    are overdue / due within 3 days / within 14 days, and the money riding on them."""
+    from . import game
+
+    board = game.scoreboard()
+    stakes = {(r["kind"], r["item"].id): r["value"] for r in board["rows"]
+              if r["state"] == "open"}
     items = timeline_items()
     for item in items:
         item["urgency"] = urgency(item["date"])
+        item["stake"] = stakes.get((item["kind"], item["obj"].id))
     counts = {u: sum(1 for i in items if i["urgency"] == u)
               for u in ("overdue", "urgent", "soon")}
-    return {"items": items[:limit], "counts": counts, "total": len(items)}
+    at_stake = sum(i["stake"] or 0 for i in items if i["urgency"] in ("urgent", "soon"))
+    return {"items": items[:limit], "counts": counts, "total": len(items),
+            "at_stake": at_stake, "paused": board["paused"]}
 
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         expected = current_app.config["PLANNER_PASSWORD"]
-        if expected and hmac.compare_digest(request.form.get("password", ""), expected):
-            session["logged_in"] = True
+        typed = request.form.get("password", "")
+        who = request.form.get("who", "")
+        student = current_app.config["STUDENT_NAME"]
+        pin = current_app.config["PARENT_PIN"]
+        if not (expected and hmac.compare_digest(typed.encode(), expected.encode())):
+            flash("That password didn't match.")
+        elif who == student:
+            session["user"], session["role"] = who, "student"
+        elif who in parent_names():
+            if pin and not hmac.compare_digest(request.form.get("pin", "").encode(),
+                                               pin.encode()):
+                flash("That parent PIN didn't match.")
+            else:
+                session["user"], session["role"] = who, "parent"
+        else:
+            flash("Pick who you are.")
+        if session.get("user"):
             session.permanent = True
             return redirect(safe_next(request.args.get("next")))
-        flash("That password didn't match.")
-    return render_template("login.html")
+    return render_template("login.html", student=current_app.config["STUDENT_NAME"],
+                           parents=parent_names(),
+                           pin_needed=bool(current_app.config["PARENT_PIN"]))
 
 
 @bp.route("/logout", methods=["POST"])
@@ -421,6 +479,13 @@ def apply_form(obj, fields, form):
                     errors.append(f"{label} isn't a valid date.")
         elif ftype == "school":
             value = int(raw) if raw.isdigit() else None
+        elif ftype == "int":
+            value = None
+            if raw.strip():
+                if raw.strip().isdigit():
+                    value = int(raw.strip())
+                else:
+                    errors.append(f"{label} must be a whole number.")
         else:
             value = raw.strip()
             if ftype == "select" and value not in choices:
@@ -440,6 +505,10 @@ def apply_form(obj, fields, form):
 def edit(kind, id=None):
     model, title, fields = form_spec(kind)
     obj = db.get_or_404(model, id) if id else model()
+    if is_game_item(obj) and not is_parent():
+        abort(403, "Only a parent can change an item that's worth points.")
+    if not is_parent():
+        fields = [f for f in fields if f[0] not in PARENT_ONLY]
     if id is None and request.method == "GET":
         # Pre-fill from the query string, e.g. /task/new?f_school_id=3&f_category=Music
         for name, *_ in fields:
@@ -455,6 +524,8 @@ def edit(kind, id=None):
                                             School.id != obj.id).first()
             if clash:
                 errors.append("A school with that name already exists.")
+        if kind in GAME_KINDS and not errors:
+            errors += settle_points(obj, id is None)
         if errors:
             for e in errors:
                 flash(e)
@@ -476,10 +547,31 @@ def edit(kind, id=None):
     return html
 
 
+def settle_points(obj, is_new):
+    """Points for a new or edited deadline/task. Cian's own additions start outside
+    the game (0 points) until a parent gives them points."""
+    from .game import default_points
+
+    if not is_parent():
+        if is_new:
+            obj.points_min = obj.points_max = 0
+        return []
+    if obj.points_min is None and obj.points_max is None:
+        obj.points_min, obj.points_max = default_points(obj) if is_new else (0, 0)
+    lo = obj.points_min if obj.points_min is not None else (obj.points_max or 0)
+    hi = obj.points_max if obj.points_max is not None else lo
+    if lo > hi:
+        return ["Points: the lowest can't be more than the highest."]
+    obj.points_min, obj.points_max = lo, hi
+    return []
+
+
 @bp.route("/<kind>/<int:id>/delete", methods=["POST"])
 def delete(kind, id):
     model, title, _ = form_spec(kind)
     obj = db.get_or_404(model, id)
+    if is_game_item(obj) and not is_parent():
+        abort(403, "Only a parent can delete an item that's worth points.")
     db.session.delete(obj)
     db.session.commit()
     flash(f"{title} deleted.")
@@ -496,6 +588,24 @@ def toggle(kind, id):
         abort(404)
     model = FORMS[kind][0]
     obj = db.get_or_404(model, id)
-    obj.done = not obj.done
+    if kind in GAME_KINDS:
+        from . import game
+
+        who = current_user()["name"]
+        if obj.verify_status == "verified" and not is_parent():
+            flash("A parent already verified this one, so only a parent can undo it.")
+            return redirect(safe_next(request.form.get("next")))
+        if not obj.done:
+            obj.done, obj.done_at = True, datetime.now()
+            obj.verify_status = "pending" if is_game_item(obj) else ""
+            game.log(who, f"Marked done: {obj.title}")
+            if is_game_item(obj):
+                flash("Nice. It's waiting for a parent to verify it.")
+        else:
+            obj.done, obj.done_at = False, None
+            obj.verify_status, obj.verified_points, obj.verified_by = "", None, ""
+            game.log(who, f"Marked not done: {obj.title}")
+    else:
+        obj.done = not obj.done
     db.session.commit()
     return redirect(safe_next(request.form.get("next")))

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}Scoreboard{% endblock %}
+{% block content %}
+{% set m = board.money %}
+{% set pot = board.pot or 1 %}
+<div class="head">
+  <h1>Scoreboard</h1>
+  {% if is_parent %}<a class="btn small" href="{{ url_for('planner.game_settings') }}">Game settings</a>{% endif %}
+</div>
+{% if board.paused %}<p class="decide">The game is paused. Nothing due while it's paused counts, either way.</p>{% endif %}
+{% if is_parent and login_enabled and not config.PARENT_PIN %}<p class="decide">Set <code>PARENT_PIN</code> in <code>.env</code> so only parents can verify. Right now anyone who picks a parent's name at login can.</p>{% endif %}
+
+<section class="card hero">
+  <div class="hero-top">
+    <div><span class="muted small">Earned so far</span><b class="big">{{ m.earned|money }}</b><span class="muted">of {{ board.pot|money }}</span></div>
+    <div class="streak"><b>{{ board.streak }}</b><span>on time in a row</span><small class="muted">best {{ board.best_streak }}</small></div>
+  </div>
+  <div class="bar" role="img" aria-label="Earned {{ m.earned|money }}, waiting {{ m.pending|money }}, still to earn {{ m.open|money }}, missed {{ m.missed|money }}">
+    <span class="seg earned" style="width: {{ (m.earned / pot * 100)|round(2) }}%"></span>
+    <span class="seg pending" style="width: {{ (m.pending / pot * 100)|round(2) }}%"></span>
+    <span class="seg open" style="width: {{ (m.open / pot * 100)|round(2) }}%"></span>
+    <span class="seg missed" style="width: {{ (m.missed / pot * 100)|round(2) }}%"></span>
+  </div>
+  <div class="legend">
+    <span><i class="dot earned"></i>Earned <b>{{ m.earned|money }}</b></span>
+    <span><i class="dot pending"></i>Waiting for a parent <b>{{ m.pending|money }}</b></span>
+    <span><i class="dot open"></i>Still to earn <b>{{ m.open|money }}</b></span>
+    <span><i class="dot missed"></i>Missed <b>{{ m.missed|money }}</b></span>
+  </div>
+  <p class="small muted" id="paid">Paid out {{ board.paid|money }} · owed {{ board.owed|money }}</p>
+  {% if is_parent %}
+  <form method="post" action="{{ url_for('planner.payout') }}" class="inline-form">
+    {{ csrf() }}
+    <input name="amount" inputmode="decimal" placeholder="Amount, e.g. 25" aria-label="Amount paid" size="10">
+    <input name="note" placeholder="Note (optional)" aria-label="Note">
+    <button class="btn small">Mark paid</button>
+  </form>
+  {% endif %}
+</section>
+
+{% if pending %}
+<section>
+  <h2>Waiting for a parent</h2>
+  <ul class="game-list">
+  {% for r in pending %}{% set it = r.item %}
+    <li class="card game-row">
+      <div class="g-main"><b>{{ it.title }}</b>{% if it.school %} <span class="muted small">{{ it.school.name }}</span>{% endif %}
+        <div class="small muted">Done {{ it.done_at.strftime('%b %-d') }}{% if it.due_date %}, due {{ it.due_date.strftime('%b %-d') }}{% endif %} · {{ it.points_min }}–{{ it.points_max }} points · up to {{ r.value|money }}</div></div>
+      {% if is_parent %}
+      <form method="post" action="{{ url_for('planner.verify', kind=r.kind, id=it.id) }}" class="inline-form">
+        {{ csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+        <input type="number" name="points" min="{{ it.points_min }}" max="{{ it.points_max }}" value="{{ it.points_max }}" aria-label="Points" class="pts">
+        <input name="note" placeholder="Note (optional)" aria-label="Note">
+        <button class="btn small keep" name="action" value="verify">Verify</button>
+        <button class="btn small" name="action" value="reject">Send back</button>
+      </form>
+      {% else %}<span class="status status-applying">Waiting</span>{% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if sent_back %}
+<section>
+  <h2>Sent back to fix</h2>
+  <ul class="game-list">
+  {% for r in sent_back %}{% set it = r.item %}
+    <li class="card game-row"><div class="g-main"><b>{{ it.title }}</b>
+      <div class="small">{{ it.verified_by }}: {{ it.verify_note or 'Have another look.' }}</div>
+      <div class="small muted">{% if it.due_date %}Still due {{ it.due_date.strftime('%b %-d') }} · {% endif %}worth up to {{ r.value|money }}</div></div></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section>
+  <h2>Up next</h2>
+  <ul class="game-list">
+  {% for r in upcoming %}{% set it = r.item %}{% set days = (it.due_date - today).days %}
+    <li class="card game-row"><div class="g-main"><b>{{ it.title }}</b>{% if it.school %} <span class="muted small">{{ it.school.name }}</span>{% endif %}
+      <div class="small muted">{% if days == 0 %}Due today{% elif days == 1 %}Due tomorrow{% else %}Due in {{ days }} days{% endif %}, {{ it.due_date.strftime('%b %-d') }}</div></div>
+      <span class="stake">{{ r.value|money }}</span></li>
+  {% else %}<li class="muted">Nothing with a date left. Great work.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <h2>By category</h2>
+  <table class="grid">
+    <thead><tr><th>Category</th><th>Earned</th><th>Worth</th><th></th></tr></thead>
+    <tbody>
+    {% for name, g in board.groups.items() %}
+      <tr><td>{{ name }}</td><td>{{ g.earned|money }}</td><td>{{ g.value|money }}</td>
+        <td><progress max="{{ g.value or 1 }}" value="{{ g.earned }}"></progress></td></tr>
+    {% else %}<tr><td colspan="4" class="muted">No items in the game yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if recent %}
+<section>
+  <h2>Recently verified</h2>
+  <ul class="plain">
+  {% for r in recent %}{% set it = r.item %}
+    <li><span class="status status-admitted">+{{ it.verified_points }} pts</span> {{ it.title }} <small class="muted">by {{ it.verified_by }}{% if it.verified_at %}, {{ it.verified_at.strftime('%b %-d') }}{% endif %}{% if it.verify_note %} · “{{ it.verify_note }}”{% endif %}</small></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if missed %}
+<section>
+  <h2>Got away</h2>
+  <p class="small muted">These passed their date without being done. Every dated item is a fresh chance.</p>
+  <ul class="plain">
+  {% for r in missed %}{% set it = r.item %}
+    <li>{{ it.title }} <small class="muted">due {{ it.due_date.strftime('%b %-d') if it.due_date else '' }} · {{ r.value|money }}</small>
+      {% if is_parent %}
+      <form method="post" action="{{ url_for('planner.verify', kind=r.kind, id=it.id) }}" class="inline">
+        {{ csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="link small" name="action" value="excuse" title="Take it out of the game: it no longer counts either way">Excuse</button>
+      </form>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if is_parent %}
+<section>
+  <h2>Log</h2>
+  <ul class="plain small">
+  {% for l in logs %}<li><span class="muted">{{ l.at.strftime('%b %-d, %-I:%M %p') }}</span> · <b>{{ l.who }}</b> {{ l.what }}</li>
+  {% else %}<li class="muted">Nothing yet.</li>{% endfor %}
+  </ul>
+  {% if payouts %}<h3>Payments</h3>
+  <ul class="plain small">{% for p in payouts %}<li>{{ p.paid_on.strftime('%b %-d, %Y') }} · {{ (p.amount_cents / 100)|money }} by {{ p.paid_by }}{% if p.note %} · {{ p.note }}{% endif %}
+    <form method="post" action="{{ url_for('planner.delete_payout', id=p.id) }}" class="inline" onsubmit="return confirm('Delete this payment?')">{{ csrf() }}<button class="link danger small">Delete</button></form></li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+
+<details class="guide">
+  <summary>How it works</summary>
+  <ul>
+    <li>{{ board.pot|money }} is split across everything in the game, by points. Bigger steps (applications, portfolios) are worth more.</li>
+    <li>Tick an item off on or before its due date, then a parent verifies it and picks the points. That money is yours.</li>
+    <li>If a parent sends it back, fix it and tick it off again before the due date.</li>
+    <li>Anything not done by its due date is missed. Things due before {{ board.start.strftime('%b %-d, %Y') }} don't count.</li>
+  </ul>
+</details>
+{% endblock %}

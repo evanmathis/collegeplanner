@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% from "_macros.html" import toggle, actions, when with context %}
+{% from "_macros.html" import toggle, actions, when, vtag with context %}
 {% block title %}Tasks{% endblock %}
 {% block content %}
 <div class="head"><h1>Tasks</h1><a class="btn" href="{{ url_for('planner.edit', kind='task') }}">Add task</a></div>
 <ul class="items">
 {% for t in tasks %}
   <li class="item {{ 'done' if t.done }}">{{ toggle('task', t) }}
-    <div class="body"><div class="line1"><span class="tag">{{ t.category }}</span> {{ t.title }}
+    <div class="body"><div class="line1"><span class="tag">{{ t.category }}</span> {{ t.title }} {{ vtag(t) }}
       {% if t.school %}<a class="school" href="{{ url_for('planner.school_detail', id=t.school.id) }}">{{ t.school.name }}</a>{% else %}<span class="school muted">All schools</span>{% endif %}</div>
       {% if t.notes %}<div class="notes">{{ t.notes }}</div>{% endif %}{{ actions('task', t) }}</div>
     {% if t.due_date %}{{ when(t.due_date) }}{% endif %}</li>

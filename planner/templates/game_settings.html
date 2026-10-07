@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}Game settings{% endblock %}
+{% block content %}
+<h1>Game settings</h1>
+<p class="lede">Only parents see this page. Every change is written to the Scoreboard log.</p>
+
+<section class="card settings-row">
+  <div><b>{{ 'Paused' if paused else 'On' }}</b>
+    <p class="small muted">{% if paused %}Nothing due while paused counts, either way.{% else %}Pausing takes everything due from today on out of the game until you resume.{% endif %}</p></div>
+  <form method="post">{{ csrf() }}
+    <button class="btn {{ 'keep' if paused else '' }}" name="action" value="{{ 'resume' if paused else 'pause' }}">{{ 'Resume' if paused else 'Pause the game' }}</button>
+  </form>
+</section>
+
+<section>
+  <h2>Rules</h2>
+  <form method="post" class="form">{{ csrf() }}
+    <label>Pot (dollars) <input type="number" name="pot" min="0" step="1" value="{{ pot }}"></label>
+    <label>Counts from <input type="date" name="start_date" value="{{ start.isoformat() }}">
+      <small>Items due before this date don't count. Move it forward to start fresh.</small></label>
+    <div class="buttons"><button class="btn primary" name="action" value="rules">Save</button></div>
+  </form>
+</section>
+
+<section>
+  <h2>Points per item</h2>
+  <p class="small muted">The pot is split by the highest points. When verifying you pick anything between the two numbers. Set both to 0 to leave an item out of the game. Usual ranges: deadlines {% for k, v in deadline_points.items() %}{{ k }} {{ v[0] }}–{{ v[1] }}{{ ', ' if not loop.last }}{% endfor %}; tasks {% for k, v in task_points.items() %}{{ k }} {{ v[0] }}–{{ v[1] }}{{ ', ' if not loop.last }}{% endfor %}.</p>
+  <form method="post">{{ csrf() }}
+  <table class="grid points-table">
+    <thead><tr><th>Item</th><th>Due</th><th>Lowest</th><th>Highest</th></tr></thead>
+    <tbody>
+    {% for prefix, kind, it in items %}
+      <tr class="{{ 'done' if it.done }}">
+        <td>{{ it.title }}{% if it.school %} <small class="muted">{{ it.school.name }}</small>{% endif %}{% if it.excused %} <span class="status">excused</span>{% endif %}</td>
+        <td class="small">{{ it.due_date.strftime('%b %-d') if it.due_date else '—' }}</td>
+        <td><input type="number" min="0" name="{{ prefix }}{{ it.id }}_min" value="{{ it.points_min or 0 }}" aria-label="Lowest points" class="pts"></td>
+        <td><input type="number" min="0" name="{{ prefix }}{{ it.id }}_max" value="{{ it.points_max or 0 }}" aria-label="Highest points" class="pts"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="buttons sticky-save"><button class="btn primary" name="action" value="points">Save points</button></div>
+  </form>
+</section>
+{% endblock %}

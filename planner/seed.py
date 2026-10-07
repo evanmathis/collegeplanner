@@ -392,6 +392,8 @@ def register_cli(app):
         tasks = os.path.join(data_dir, "tasks.csv")
         if os.path.exists(tasks):
             click.echo(f"Added {import_tasks(tasks)} high school and application tasks.")
+        from .game import assign_default_points
+        assign_default_points()
         scholarships = os.path.join(data_dir, "scholarships.csv")
         if os.path.exists(scholarships):
             click.echo(f"Added {import_scholarships(scholarships)} scholarships.")

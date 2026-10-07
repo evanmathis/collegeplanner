@@ -53,6 +53,13 @@ def create_app(config=None):
         # Secret part of the calendar feed URL; the feed is off when unset.
         CALENDAR_TOKEN=os.environ.get("CALENDAR_TOKEN", ""),
     )
+    # Who's logging in, for the points game. Everyone uses PLANNER_PASSWORD; a parent
+    # also types PARENT_PIN, so Cian can't verify his own work.
+    app.config.update(
+        STUDENT_NAME=os.environ.get("STUDENT_NAME", "Cian"),
+        PARENT_NAMES=os.environ.get("PARENT_NAMES", "Evan,Amy"),
+        PARENT_PIN=os.environ.get("PARENT_PIN", ""),
+    )
     if config:
         app.config.update(config)
 
@@ -61,6 +68,8 @@ def create_app(config=None):
     from . import models  # noqa: F401  (registers tables)
     from .views import bp
     from .seed import register_cli
+
+    from . import scoreboard  # noqa: F401  (adds the game's pages to bp)
 
     app.register_blueprint(bp)
     register_cli(app)
@@ -73,6 +82,22 @@ def create_app(config=None):
             prepare_database()
 
     return app
+
+
+def prepare_game():
+    """Point ranges for items that have none, and a done-time for items ticked off
+    before the game existed (they wait for a parent to verify)."""
+    from datetime import datetime
+
+    from .game import assign_default_points
+    from .models import Deadline, Task
+
+    assign_default_points()
+    for model in (Deadline, Task):
+        for item in model.query.filter(model.done.is_(True), model.done_at.is_(None)):
+            item.done_at = datetime.now()
+            item.verify_status = item.verify_status or "pending"
+    db.session.commit()
 
 
 def rename_old_statuses():
@@ -88,6 +113,7 @@ def prepare_database():
     db.create_all()
     add_missing_columns()
     rename_old_statuses()
+    prepare_game()
 
 
 def add_missing_columns():

@@ -91,7 +91,23 @@ class School(db.Model):
         return min(upcoming, key=lambda d: d.due_date) if upcoming else None
 
 
-class Deadline(db.Model):
+class GameItem:
+    """Columns shared by Deadline and Task for the points game (see planner/game.py).
+
+    Cian marks an item done (done_at); a parent then verifies it (picking points
+    between points_min and points_max) or sends it back with a note."""
+    points_min = db.Column(db.Integer)
+    points_max = db.Column(db.Integer)
+    done_at = db.Column(db.DateTime)
+    verify_status = db.Column(db.String(20), default="")  # "", pending, verified, rejected
+    verified_points = db.Column(db.Integer)
+    verified_by = db.Column(db.String(80), default="")
+    verified_at = db.Column(db.DateTime)
+    verify_note = db.Column(db.Text, default="")
+    excused = db.Column(db.Boolean, default=False)  # a parent took it out of the game
+
+
+class Deadline(GameItem, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     school_id = db.Column(db.Integer, db.ForeignKey("school.id"), nullable=True)
     title = db.Column(db.String(255), nullable=False)
@@ -101,7 +117,7 @@ class Deadline(db.Model):
     notes = db.Column(db.Text, default="")
 
 
-class Task(db.Model):
+class Task(GameItem, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     school_id = db.Column(db.Integer, db.ForeignKey("school.id"), nullable=True)
     title = db.Column(db.String(255), nullable=False)
@@ -177,3 +193,31 @@ class Scholarship(db.Model):
                                                                  "California private"):
                 return True
         return False
+
+
+class Setting(db.Model):
+    """Small key/value settings, e.g. the game's pot and start date."""
+    key = db.Column(db.String(40), primary_key=True)
+    value = db.Column(db.String(255), default="")
+
+
+class PausePeriod(db.Model):
+    """While the game is paused; items due inside a period don't count either way."""
+    id = db.Column(db.Integer, primary_key=True)
+    start = db.Column(db.Date, nullable=False)
+    end = db.Column(db.Date)  # None while still paused
+
+
+class Payout(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    amount_cents = db.Column(db.Integer, nullable=False)
+    paid_on = db.Column(db.Date, default=date.today)
+    paid_by = db.Column(db.String(80), default="")
+    note = db.Column(db.String(255), default="")
+
+
+class GameLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    at = db.Column(db.DateTime, default=datetime.now)
+    who = db.Column(db.String(80), default="")
+    what = db.Column(db.String(500), nullable=False)
