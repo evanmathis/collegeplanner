@@ -151,8 +151,10 @@ def logout():
 
 
 def safe_next(target, fallback=None):
+    """Only local paths. Pages pass request.path / full_path, which leave out the
+    folder the app is served from (e.g. /collegeplanner), so add it back."""
     if target and target.startswith("/") and not target.startswith("//"):
-        return target
+        return request.script_root + target
     return fallback or url_for("planner.dashboard")
 
 

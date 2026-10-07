@@ -74,66 +74,101 @@ reminders at 9am: two weeks before, one week before, then every day until it's d
 
 ## Put it on DreamHost (Shared Unlimited)
 
-DreamHost no longer offers Passenger, but shared plans still run Python CGI scripts, and
-that's how the planner runs there: no extra service and nothing to restart. Each page
-takes about a second. The steps use `college.zonelab.app` for the website; use whatever
-address you pick.
+The planner lives at **https://zonelab.app/collegeplanner/**, with its code in
+**`~/zonelab.app/collegeplanner`** (that is, `/home/three5/zonelab.app/collegeplanner`).
+DreamHost shared plans run it as a Python CGI script: nothing to start or restart, and each
+page takes about a second. The rest of the zonelab.app site is not touched.
+
+That folder is inside the live website, so the planner's `.htaccess` sends every request to
+the app. Nothing in the folder (`.env`, `.git`, code, data) can be downloaded; hidden files
+get "403 Forbidden" and anything else gets the planner's login page or "Not Found".
 
 Your database: **`schoolpicker`**, user **`three5`**, host **`schoolpicker.zonelab.app`**
 (never `localhost`).
 
-1. **Website.** In the panel, *Websites → Add Website*, and add `college.zonelab.app` as a
-   fully hosted site.
-2. **Shell access.** *Websites → SFTP Users & Files*, edit the site's user and make it a
-   **Shell user**. Then SSH in: `ssh USER@college.zonelab.app`.
-3. **Get the code** into your home folder (outside the website folder, so `.env` is never
-   served):
+**Before you start:** the code must be on the `main` branch on GitHub (merge the pull
+request), and your user must be a **Shell user** (*Websites → SFTP Users & Files*).
+
+Run each block over SSH, one at a time, and compare with what it should print.
+
+1. **Look first** (changes nothing):
    ```bash
-   git clone https://github.com/evanmathis/collegeplanner.git ~/collegeplanner
-   cd ~/collegeplanner
+   ls -la ~/zonelab.app/collegeplanner
+   ```
+   Should list only `.` and `..` (an empty folder). If it lists anything else, stop: that's
+   not ours, so choose another folder name.
+2. **Get the code into that folder:**
+   ```bash
+   rmdir ~/zonelab.app/collegeplanner
+   git clone https://github.com/evanmathis/collegeplanner.git ~/zonelab.app/collegeplanner
+   cd ~/zonelab.app/collegeplanner
+   ls index.cgi .htaccess requirements.txt
+   ```
+   `rmdir` only removes an empty folder, so it can't delete anything by mistake. The last
+   line should print the three file names. (Already cloned to `~/collegeplanner` by
+   mistake? Move it instead of cloning again: replace the `git clone` line with
+   `mv ~/collegeplanner ~/zonelab.app/collegeplanner`, then run `git pull` inside it.)
+3. **Install the app's packages** (takes a minute; ends with "Successfully installed ..."):
+   ```bash
    python3 -m venv venv
    venv/bin/pip install -r requirements.txt
    ```
-4. **Settings.** `cp .env.example .env && chmod 600 .env`, then `nano .env`:
+4. **Settings:**
+   ```bash
+   cp .env.example .env && chmod 600 .env
+   python3 -c "import secrets; print(secrets.token_hex(32)); print(secrets.token_hex(16))"
+   nano .env
    ```
-   SECRET_KEY=...            # python3 -c "import secrets; print(secrets.token_hex(32))"
-   PLANNER_PASSWORD=...      # what Cian types to get in; without it anyone with the URL can edit
-   CALENDAR_TOKEN=...        # another long random string; the secret part of the calendar link
+   Paste the first printed string as `SECRET_KEY` and the second as `CALENDAR_TOKEN`, pick
+   a `PLANNER_PASSWORD` for Cian, and type the MySQL password between the single quotes:
+   ```
+   SECRET_KEY=...
+   PLANNER_PASSWORD=...
+   CALENDAR_TOKEN=...
    DB_HOST=schoolpicker.zonelab.app
    DB_USER=three5
    DB_PASSWORD='your-mysql-password'
    DB_NAME=schoolpicker
    ```
-   Keep the password in single quotes; then no character in it needs escaping. Never put
-   the password in chat or in git (`.env` is ignored by git).
-5. **Check the database, then load the data:**
+   Save with Ctrl+O, Enter, Ctrl+X. Never put the password in chat or in git.
+5. **Check the database and load the data:**
    ```bash
-   venv/bin/python -m flask --app planner check-db   # explains any problem; never prints the password
+   venv/bin/python -m flask --app planner check-db
    venv/bin/python -m flask --app planner seed
-   venv/bin/python -m flask --app planner check-db   # should end with "All good."
+   venv/bin/python -m flask --app planner check-db
    ```
-   A new MySQL hostname can take 5-10 minutes to start working.
-6. **Turn on the site:**
+   The first `check-db` should say "Connected" and then "Missing tables"; that's expected
+   before the first seed. The last one should end with "All good." If it can't connect, it
+   says why.
+6. **Permissions** (DreamHost refuses to run scripts in group-writable folders):
    ```bash
-   cp ~/collegeplanner/deploy/shared/index.cgi ~/collegeplanner/deploy/shared/.htaccess ~/college.zonelab.app/
-   chmod 755 ~/college.zonelab.app ~/college.zonelab.app/index.cgi
+   chmod 755 ~/zonelab.app/collegeplanner index.cgi
    ```
-7. **HTTPS.** *Websites → Secure Certificates*, add the free Let's Encrypt certificate.
-   Then open `https://college.zonelab.app`, log in, and copy the subscription link from the
-   Calendar page.
+7. **Try it.** Open https://zonelab.app/collegeplanner/ and you should get the planner's
+   login page. Then check that nothing private can be downloaded:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" https://zonelab.app/collegeplanner/.env         # 403
+   curl -s -o /dev/null -w "%{http_code}\n" https://zonelab.app/collegeplanner/.git/config  # 403
+   curl -s -o /dev/null -w "%{http_code}\n" https://zonelab.app/collegeplanner/data/schools.csv  # 302 (sent to login)
+   curl -s -o /dev/null -w "%{http_code}\n" https://zonelab.app/                            # 200, main site as before
+   ```
+   If zonelab.app doesn't already have HTTPS, add the free Let's Encrypt certificate under
+   *Websites → Secure Certificates*. The calendar subscription link (Calendar page) will be
+   `https://zonelab.app/collegeplanner/calendar/<your token>.ics`.
 
-**Updating later:** `cd ~/collegeplanner && git pull`, then
-`venv/bin/pip install -r requirements.txt` if it changed and
-`venv/bin/python -m flask --app planner seed` if the data changed. No restart needed.
+**Updating later:**
+```bash
+cd ~/zonelab.app/collegeplanner && git pull
+venv/bin/pip install -r requirements.txt               # only if requirements.txt changed
+venv/bin/python -m flask --app planner seed            # only if the data changed
+```
 
 **If something's wrong:**
-- Run `check-db` first. It tells you if the host can't be reached, the hostname doesn't
+- Run `check-db` first. It says whether the host can't be reached, the hostname doesn't
   exist yet, the password is wrong, this computer isn't allowed, or tables are missing.
-- "Internal Server Error": look in `~/logs/college.zonelab.app/http/error.log`. Make sure
-  `index.cgi` is 755 and the site folder isn't group-writable. If the log says `Option
-  ExecCGI not allowed here`, delete the first two lines of `.htaccess`.
-- `index.cgi` expects the code in `~/collegeplanner`. If you cloned elsewhere, change
-  `APP_DIR` at the top of the copied `index.cgi`.
+- "Internal Server Error": look in `~/logs/zonelab.app/http/error.log`. Make sure step 6
+  was done. If the log says `Option ExecCGI not allowed here`, delete the line starting
+  with `Options` in `.htaccess` and add `Options -Indexes` in its place.
 
 **Using the DreamHost database from your Mac** (optional): DreamHost only lets its own
 servers in by default. In *MySQL Databases*, click `three5` and add your home IP address on
@@ -144,7 +179,7 @@ lines in a `.env` in your local copy.
 
 Only needed if CGI on shared hosting stops working or feels too slow:
 
-- **DreamHost Managed VPS** (paid upgrade): faster pages. Do steps 1-5 above, then in
+- **DreamHost Managed VPS** (paid upgrade): faster pages. Clone to `~/collegeplanner` and do steps 3-5 above, then in
   *Servers & Usage → Manage → Proxy Server* add port `8000` for the site, and keep the app
   running with Gunicorn using DreamHost's "Using linger with Gunicorn" article, with
   `ExecStart=%h/collegeplanner/venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8000 wsgi:app`
@@ -161,7 +196,7 @@ Only needed if CGI on shared hosting stops working or feels too slow:
 ```
 planner/            the app (models.py, views.py, seed.py, checkdb.py, templates/, static/)
 data/               school, task and scholarship data loaded by `seed`
-deploy/shared/      index.cgi and .htaccess for DreamHost shared hosting
+index.cgi, .htaccess  run the app on shared hosting (DreamHost) and keep the folder private
 wsgi.py             entry point for Gunicorn (VPS) or PythonAnywhere
 tests/              pytest tests
 ```

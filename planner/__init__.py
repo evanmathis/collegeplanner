@@ -43,6 +43,8 @@ def create_app(config=None):
 
     app.config.update(
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev-only-change-me"),
+        # Its own cookie name, so other apps on the same domain don't clash with it.
+        SESSION_COOKIE_NAME="planner_session",
         SQLALCHEMY_DATABASE_URI=database_url(app.instance_path),
         # MySQL on shared hosting drops idle connections; recycle before that happens.
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True, "pool_recycle": 280},

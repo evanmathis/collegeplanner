@@ -1,0 +1,11 @@
+# For shared hosting (Apache): this folder is the website folder. Every request goes
+# through index.cgi, which serves the app's pages and its own CSS, so nothing else here
+# (.env, .git, venv, code, data) can be downloaded.
+Options +ExecCGI -Indexes
+AddHandler cgi-script .cgi
+DirectoryIndex index.cgi
+RewriteEngine On
+# Refuse hidden files and folders outright (.env, .git, .htaccess).
+RewriteRule (^|/)\. - [F]
+RewriteRule ^index\.cgi(/|$) - [L]
+RewriteRule ^(.*)$ index.cgi/$1 [L,QSA]

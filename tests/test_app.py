@@ -339,3 +339,17 @@ def test_database_settings_from_parts(monkeypatch, tmp_path):
 def test_check_db_on_sqlite(app):
     result = app.test_cli_runner().invoke(args=["check-db"])
     assert result.exit_code == 0 and "Tables OK" in result.output
+
+
+def test_served_from_a_subfolder(app):
+    """On shared hosting the app lives at https://zonelab.app/collegeplanner/."""
+    seed(app)
+    client = app.test_client()
+    sub = {"SCRIPT_NAME": "/collegeplanner"}
+    html = client.get("/scholarships", environ_overrides=sub).get_data(as_text=True)
+    assert 'href="/collegeplanner/timeline"' in html
+    assert 'href="/collegeplanner/static/style.css' in html
+    token = re.search(r'name="_csrf" value="([^"]+)"', html).group(1)
+    r = client.post("/scholarships/1/status", environ_overrides=sub,
+                    data={"_csrf": token, "status": "Skip", "next": "/scholarships?"})
+    assert r.headers["Location"].startswith("/collegeplanner/scholarships")
