@@ -1,0 +1,7 @@
+# Send every request to the planner (index.cgi). Copy next to index.cgi.
+Options +ExecCGI -Indexes
+AddHandler cgi-script .cgi
+DirectoryIndex index.cgi
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.cgi/$1 [L,QSA]
