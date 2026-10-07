@@ -6,7 +6,8 @@ import pytest
 
 from planner import create_app, db
 from planner.models import Deadline, Question, School, Task
-from planner.seed import DATA_DIR, import_schools, import_suggestions, parse_dates
+from planner.seed import (DATA_DIR, import_schools, import_suggestions, import_tasks,
+                          parse_dates)
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def seed(app):
     with app.app_context():
         import_schools(os.path.join(DATA_DIR, "schools.csv"))
         import_suggestions(os.path.join(DATA_DIR, "suggestions.csv"))
+        import_tasks(os.path.join(DATA_DIR, "tasks.csv"))
 
 
 def test_parse_dates_reuses_year():
@@ -49,6 +51,10 @@ def test_seed_is_idempotent(app):
         assert School.query.filter_by(status="Applying").count() == 9
         ucla = School.query.filter_by(name="UCLA").one()
         assert any(d.due_date == date(2026, 12, 4) for d in ucla.deadlines)
+        brag = Task.query.filter(Task.title.like("Complete Brag Sheet%")).one()
+        assert brag.category == "High school" and brag.due_date == date(2026, 10, 31)
+        letter = Task.query.filter(Task.title.like("Request teacher letter%")).one()
+        assert letter.due_date is None and "30 days before" in letter.notes
 
 
 def test_every_page_renders(app, client):

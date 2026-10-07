@@ -1,4 +1,4 @@
-"""Load the school data table (data/schools.csv, data/suggestions.csv) into the database.
+"""Load the school data table (data/schools.csv, suggestions.csv, tasks.csv) into the database.
 
 Safe to run more than once: schools are matched by name, and deadlines, tasks and
 links are only added when an identical one isn't already there. Cian's own changes
@@ -160,15 +160,47 @@ def import_suggestions(path):
     return added
 
 
+TASK_CATEGORY_MAP = {"school": "High school", "application": "Application"}
+APPLIES_TO_LABELS = {"UC": "UC Application", "CSU": "Cal State Apply", "UC;CSU": "UC and Cal State",
+                     "all": "All schools", "as needed": "Only if a school asks"}
+
+
+def import_tasks(path):
+    """High school and application steps (tasks.csv); not tied to one school."""
+    added = 0
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            title = row["task"].strip()
+            if Task.query.filter_by(school_id=None, title=title).first():
+                continue
+            dates = parse_dates(row["due"])
+            notes = [row["how"].strip()]
+            if not dates and row["due"].strip():
+                notes.append("When: " + row["due"].strip())
+            applies = row["applies_to"].strip()
+            notes.append("For: " + APPLIES_TO_LABELS.get(applies, applies))
+            if row.get("source"):
+                notes.append("Source: " + row["source"].strip())
+            db.session.add(Task(title=title, due_date=dates[0] if dates else None,
+                                category=TASK_CATEGORY_MAP.get(row["category"].strip(), "General"),
+                                notes="\n".join(n for n in notes if n)))
+            added += 1
+    db.session.commit()
+    return added
+
+
 def register_cli(app):
     @app.cli.command("seed")
     @click.option("--data-dir", default=DATA_DIR, show_default=True,
-                  help="Folder holding schools.csv and suggestions.csv.")
+                  help="Folder holding schools.csv, suggestions.csv and tasks.csv.")
     def seed_command(data_dir):
-        """Import the school list, deadlines and suggestions."""
+        """Import the school list, deadlines, suggestions and tasks."""
         stats = import_schools(os.path.join(data_dir, "schools.csv"))
         click.echo("Added {schools} schools, {deadlines} deadlines, {tasks} tasks, "
                    "{links} links.".format(**stats))
         suggestions = os.path.join(data_dir, "suggestions.csv")
         if os.path.exists(suggestions):
             click.echo(f"Added {import_suggestions(suggestions)} suggested schools (as Ideas).")
+        tasks = os.path.join(data_dir, "tasks.csv")
+        if os.path.exists(tasks):
+            click.echo(f"Added {import_tasks(tasks)} high school and application tasks.")

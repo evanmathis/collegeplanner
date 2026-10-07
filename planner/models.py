@@ -6,7 +6,7 @@ SCHOOL_STATUSES = ["Idea", "Considering", "Applying", "Submitted", "Admitted",
                    "Waitlisted", "Denied", "Committed"]
 FEE_WAIVER_STATUSES = ["Not checked", "Eligible", "Requested", "Granted", "Not eligible"]
 DEADLINE_KINDS = ["Application", "Music", "Financial aid", "Scholarship", "Other"]
-TASK_CATEGORIES = ["Application", "Music", "Financial aid", "Testing", "General"]
+TASK_CATEGORIES = ["Application", "High school", "Music", "Financial aid", "Testing", "General"]
 QUESTION_TOPICS = ["General", "Application", "Music", "Financial aid", "Scholarships"]
 SCHOLARSHIP_STATUSES = ["Researching", "Applying", "Submitted", "Awarded", "Not awarded"]
 

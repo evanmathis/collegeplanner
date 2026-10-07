@@ -35,7 +35,21 @@ UC Berkeley, UC Irvine (BA, ICIT emphasis) and UC Davis need no audition or port
 - CSU: application fee per campus; a fee waiver is offered inside Cal State Apply based on family income.
 - UCLA's Acceptd supplemental fee ($87) is separate from the UC fee.
 
+## Venice High process steps (from Evan's counselor slides)
+
+The counselor deck matches the dates above: UC and CSU both open Oct 1 and are due Nov 30. There are no conflicts with the school table.
+
+What it adds are steps on Cian's high school side, now in `tasks.csv`:
+- Add every college in Naviance and move it to "Colleges I'm Applying To". Transcripts and letters can't be sent otherwise.
+- Complete the **Brag Sheet 2027** survey in Naviance. It's required for all seniors.
+- Link his CaliforniaColleges.edu account (LAUSD login, via Clever) to both the UC and Cal State applications.
+- Request counselor and teacher letters in Naviance only if a school asks, at least **30 days** before that school's deadline.
+- UC application: answer 4 of the 8 Personal Insight Questions.
+
+The Oct 31 dates in `tasks.csv` are my suggested targets, not school deadlines. The Common App slides don't apply, because every school on the list is public and uses the UC or Cal State application.
+
 ## Files
 
 - `schools.csv`: one row per school, ready to load into the planner's database.
 - `suggestions.csv`: other public schools with strong composition programs.
+- `tasks.csv`: high school and application steps with target dates.

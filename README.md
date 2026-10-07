@@ -40,7 +40,7 @@ Run the tests with `pytest`.
 ## School data
 
 `data/schools.csv` has one row per school (deadlines for the fall 2027 class, checked
-2026-10-07) and `data/suggestions.csv` has other schools worth a look. `data/README.md`
+2026-10-07), `data/suggestions.csv` has other schools worth a look, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions). `data/README.md`
 summarizes the shared deadlines. To update the data, edit the CSVs and run
 `flask --app planner seed` again.
 
