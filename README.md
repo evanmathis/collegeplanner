@@ -34,7 +34,7 @@ There are two ways, with a tradeoff:
 
 ## Run it on your computer
 
-Needs Python 3.9 or newer.
+Needs Python 3.8 or newer.
 
 ```bash
 git clone https://github.com/evanmathis/collegeplanner.git
@@ -74,7 +74,7 @@ There are three ways to run the planner, depending on the hosting:
 
 | What your hosting has | Use |
 |---|---|
-| DreamHost shared hosting, or any Apache host that runs `.cgi` scripts, and no "Python app" tool | **Shared hosting with CGI** (below) |
+| DreamHost shared hosting (for example Shared Unlimited), or any Apache host that runs `.cgi` scripts, and no "Python app" tool | **Shared hosting with CGI** (below) |
 | A control panel with **Setup Python App**, **Python Selector** or a **Python** app manager (cPanel, CloudLinux, Plesk) | **Shared hosting with a Python app tool** (below) |
 | A DreamHost Managed VPS or Dedicated server | **Option A** |
 
@@ -94,7 +94,7 @@ The steps use `college.zonelab.app` for the website and the MySQL database `scho
    ```bash
    git clone https://github.com/evanmathis/collegeplanner.git ~/collegeplanner
    cd ~/collegeplanner
-   python3 --version            # needs 3.9 or newer
+   python3 --version            # needs 3.8 or newer
    python3 -m venv venv
    venv/bin/pip install -r requirements.txt
    ```
@@ -141,13 +141,15 @@ To deploy changes later: `cd ~/collegeplanner && git pull`, then
 
 If a page shows "Internal Server Error", check the site's error log
 (`~/logs/college.zonelab.app/http/error.log` on DreamHost) and make sure `index.cgi` is 755
-with Unix line endings and the folder isn't group-writable.
+with Unix line endings and the folder isn't group-writable. If the log says `Option ExecCGI
+not allowed here`, delete the first two lines of `.htaccess` (the server already runs `.cgi`
+files).
 
 ### Shared hosting with a Python app tool (cPanel and similar)
 
 1. Do steps 1-2 of the setup above, but skip making `venv`.
 2. In the control panel, open **Setup Python App** (or *Python Selector*), click
-   **Create Application**, and set: Python version 3.9 or newer, *Application root*
+   **Create Application**, and set: Python version 3.8 or newer, *Application root*
    `collegeplanner`, *Application URL* your site, *Application startup file*
    `passenger_wsgi.py`, *Application entry point* `application`. Click **Create**.
    (If it replaced `passenger_wsgi.py`, run `git checkout passenger_wsgi.py`.)
