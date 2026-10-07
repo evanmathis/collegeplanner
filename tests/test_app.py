@@ -105,3 +105,35 @@ def test_password_required_when_set(tmp_path):
     c.get("/login")
     c.post("/login", data={"password": "pw"})
     assert c.get("/").status_code == 200
+
+
+def test_calendar_download_and_feed(tmp_path):
+    app = create_app({"TESTING": True, "PLANNER_PASSWORD": "pw", "CALENDAR_TOKEN": "s3cret",
+                      "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'c.db'}"})
+    seed(app)
+    c = app.test_client()
+    # Download needs a login; the feed works with only the token.
+    assert c.get("/calendar.ics").status_code == 302
+    assert c.get("/calendar/wrong.ics").status_code == 404
+    r = c.get("/calendar/s3cret.ics")
+    assert r.status_code == 200 and r.mimetype == "text/calendar"
+    body = r.get_data(as_text=True)
+    assert body.startswith("BEGIN:VCALENDAR\r\n") and body.endswith("END:VCALENDAR\r\n")
+    assert "SUMMARY:UCLA: Music application / portfolio due" in body
+    assert "DTSTART;VALUE=DATE:20261204" in body
+    assert all(len(line.encode()) <= 75 for line in body.split("\r\n"))
+    with app.app_context():
+        dl = Deadline.query.filter_by(due_date=date(2026, 12, 4)).one()
+        assert f"UID:deadline-{dl.id}@college-planner" in body
+        dl.done = True
+        db.session.commit()
+    assert "20261204" not in c.get("/calendar/s3cret.ics").get_data(as_text=True)
+    c.post("/login", data={"password": "pw"})
+    r = c.get("/calendar.ics")
+    assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
+    assert c.get("/calendar").status_code == 200
+
+
+def test_calendar_feed_off_without_token(client):
+    assert client.get("/calendar/anything.ics").status_code == 404
+    assert b"feed is off" in client.get("/calendar").data

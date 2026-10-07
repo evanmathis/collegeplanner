@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<h1>Put due dates on your calendar</h1>
+<p>{{ count }} open deadlines, dated tasks and scholarship deadlines become all-day events, each with a reminder at 9am the day before. Finished items are left out.</p>
+
+<section>
+  <h2>Option 1: Subscribe (stays up to date)</h2>
+  {% if feed_url %}
+  <p>Your calendar app checks the planner every few hours, so new dates and changes show up on their own and finished items drop off.</p>
+  <ul class="plain">
+    <li><b>iPhone / iPad / Mac:</b> <a class="btn small" href="{{ webcal_url }}">Subscribe in Apple Calendar</a>
+      <br><small class="muted">Or in Calendar on a Mac: File › New Calendar Subscription, and paste the address below. Choose "iCloud" as the location so it shows on every device.</small></li>
+    <li><b>Google Calendar:</b> Other calendars › + › From URL, and paste the address below.</li>
+  </ul>
+  <label class="copy">Feed address (keep it private; anyone with it can see the dates)
+    <input type="text" readonly value="{{ feed_url }}" onclick="this.select()">
+  </label>
+  <p class="muted"><small>A subscription appears as its own calendar named "College Planner", next to Family. Calendar apps can't merge a subscription into an existing calendar. You can give it the same color as Family and share the subscription address with the rest of the family.</small></p>
+  {% else %}
+  <p class="muted">The subscription feed is off. To turn it on, set <code>CALENDAR_TOKEN</code> to a long random string in <code>.env</code> (see the README) and restart the site.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Option 2: Copy into the Family calendar (one time)</h2>
+  <p><a class="btn" href="{{ url_for('planner.calendar_download') }}">Download college-planner.ics</a></p>
+  <p>Open the file on a Mac or iPhone. Calendar asks which calendar to add the events to: pick <b>Family</b>.</p>
+  <p class="muted"><small>This is a copy. Later changes in the planner won't reach your calendar, and importing a newer file can leave old or duplicate events behind. If dates are likely to change, subscribing is the better choice.</small></p>
+</section>
+{% endblock %}

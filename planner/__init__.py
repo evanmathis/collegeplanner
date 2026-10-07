@@ -19,6 +19,8 @@ def create_app(config=None):
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True, "pool_recycle": 280},
         # When unset, the site is open (fine for local testing only).
         PLANNER_PASSWORD=os.environ.get("PLANNER_PASSWORD", ""),
+        # Secret part of the calendar feed URL; the feed is off when unset.
+        CALENDAR_TOKEN=os.environ.get("CALENDAR_TOKEN", ""),
     )
     if config:
         app.config.update(config)

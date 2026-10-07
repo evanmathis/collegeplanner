@@ -102,3 +102,6 @@ ul.plain li { padding: .3rem 0; }
 .guide { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .6rem 1rem; }
 .guide summary { font-weight: 600; cursor: pointer; }
 .guide li { margin: .35rem 0; }
+label.copy { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; margin: .8rem 0; }
+label.copy input { font: inherit; font-weight: 400; font-size: .85rem; padding: .45rem .6rem; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 100%; }

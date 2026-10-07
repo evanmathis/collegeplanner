@@ -16,6 +16,20 @@ DreamHost.
 - **Paying for college**: a short guide to FAFSA / CA Dream Act and Cal Grant, aid deadlines, fee-waiver status per school, and a scholarship tracker.
 - **Questions**: log anything you're unsure about and write down the answer when you find it.
 
+## Due dates on your calendar
+
+The **Calendar** page puts every open deadline, dated task and scholarship deadline
+on Apple Calendar (or Google/Outlook) as all-day events with a reminder the day before.
+There are two ways, with a tradeoff:
+
+- **Subscribe** (recommended): the calendar app re-reads the planner every few hours,
+  so changes and finished items stay in sync. It shows up as its own calendar called
+  "College Planner" next to Family; no calendar app can merge a subscription into an
+  existing calendar. Needs `CALENDAR_TOKEN` set (below) and the site on DreamHost, since
+  your phone can't reach a copy running on your computer.
+- **Download `college-planner.ics`** and import it into **Family**: the events land in
+  Family itself, but it's a one-time copy that won't update.
+
 ## Run it on your computer
 
 Needs Python 3.9 or newer.
@@ -69,6 +83,8 @@ These steps use DreamHost's Passenger support for Python.
    - `SECRET_KEY`: any long random string (`python3 -c "import secrets; print(secrets.token_hex(32))"`)
    - `PLANNER_PASSWORD`: the password Cian will type to get in. **Set this**: without it anyone with the URL can see and edit the plan.
    - `DATABASE_URL`: `mysql+pymysql://USER:PASSWORD@mysql.yourdomain.com/collegeplanner?charset=utf8mb4`
+   - `CALENDAR_TOKEN`: another long random string. It's the secret part of the calendar
+     subscription address (calendar apps can't log in). Change it to cut off old subscriptions.
 6. **Create tables and load the schools:**
    ```bash
    set -a; source .env; set +a

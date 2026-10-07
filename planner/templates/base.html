@@ -16,6 +16,7 @@
     <a href="{{ url_for('planner.tasks') }}">Tasks</a>
     <a href="{{ url_for('planner.aid') }}">Paying for college</a>
     <a href="{{ url_for('planner.questions') }}">Questions</a>
+    <a href="{{ url_for('planner.calendar') }}">Calendar</a>
     {% if login_enabled and session.logged_in %}
     <form method="post" action="{{ url_for('planner.logout') }}" class="inline">
       <input type="hidden" name="_csrf" value="{{ csrf_token }}">

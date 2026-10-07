@@ -3,10 +3,11 @@ import secrets
 from collections import OrderedDict
 from datetime import date, timedelta
 
-from flask import (Blueprint, abort, current_app, flash, redirect, render_template,
-                   request, session, url_for)
+from flask import (Blueprint, Response, abort, current_app, flash, redirect,
+                   render_template, request, session, url_for)
 
 from . import db
+from .ical import build_calendar
 from .models import (DEADLINE_KINDS, FEE_WAIVER_STATUSES, QUESTION_TOPICS,
                      SCHOLARSHIP_STATUSES, SCHOOL_STATUSES, TASK_CATEGORIES, Deadline,
                      Link, Question, Scholarship, School, Task)
@@ -73,7 +74,9 @@ REQUIRED = {"name", "title", "label", "url", "question", "due_date"}
 
 @bp.before_app_request
 def guard():
-    if request.endpoint in ("planner.login", "static"):
+    # The calendar feed is protected by the secret token in its URL instead,
+    # because calendar apps can't log in.
+    if request.endpoint in ("planner.login", "planner.calendar_feed", "static"):
         return None
     password = current_app.config["PLANNER_PASSWORD"]
     if password and not session.get("logged_in"):
@@ -199,6 +202,37 @@ def aid():
     return render_template("aid.html", aid_deadlines=aid_deadlines, schools=schools,
                            scholarships=scholarships, aid_tasks=aid_tasks,
                            fee_waiver_statuses=FEE_WAIVER_STATUSES)
+
+
+def calendar_response(download):
+    body = build_calendar(timeline_items(), url_for("planner.timeline", _external=True))
+    resp = Response(body, mimetype="text/calendar")
+    if download:
+        resp.headers["Content-Disposition"] = "attachment; filename=college-planner.ics"
+    return resp
+
+
+@bp.route("/calendar")
+def calendar():
+    token = current_app.config["CALENDAR_TOKEN"]
+    feed_url = url_for("planner.calendar_feed", token=token, _external=True) if token else ""
+    return render_template("calendar.html", feed_url=feed_url,
+                           webcal_url=feed_url.replace("https://", "webcal://", 1)
+                           .replace("http://", "webcal://", 1),
+                           count=len(timeline_items()))
+
+
+@bp.route("/calendar.ics")
+def calendar_download():
+    return calendar_response(download=True)
+
+
+@bp.route("/calendar/<token>.ics")
+def calendar_feed(token):
+    expected = current_app.config["CALENDAR_TOKEN"]
+    if not expected or not hmac.compare_digest(token, expected):
+        abort(404)
+    return calendar_response(download=False)
 
 
 @bp.route("/schools/<int:id>/fee-waiver", methods=["POST"])
