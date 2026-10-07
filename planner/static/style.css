@@ -175,7 +175,7 @@ ul.plain li { padding: .35rem 0; }
 .form.narrow { max-width: 360px; }
 .form label { display: grid; gap: .35rem; font-weight: 500; font-size: .9rem; color: var(--muted); }
 .form .check-row { display: flex; gap: .5rem; align-items: center; color: var(--ink); }
-.form input[type=text], .form input[type=url], .form input[type=date], .form input[type=password],
+.form input[type=text], .form input[type=url], .form input[type=date], .form input[type=password], .form input[type=number],
 .form select, .form textarea, label.copy input {
   font: inherit; font-size: 1rem; color: var(--ink); padding: .6rem .8rem; border-radius: var(--radius-sm);
   border: 1px solid transparent; background: var(--card-2); width: 100%; }
@@ -287,3 +287,45 @@ details.removed summary { cursor: pointer; font-weight: 600; color: var(--muted)
   .sch-head { flex-direction: column; } .sch-when { max-width: none; } .sch-when .when { text-align: left; }
 }
 @media (max-width: 600px) { .filters { gap: .5rem .6rem; padding: .7rem .8rem; } .filters select { font-size: .85rem; } }
+
+/* Points game */
+.alert-stake { background: var(--good); }
+.alert-stake:hover { text-decoration: none; filter: brightness(1.05); }
+.upnext .u-stake { font-size: .75rem; font-weight: 700; color: var(--good); white-space: nowrap; }
+.hero { padding: 1.3rem 1.4rem; }
+.hero-top { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-end; }
+.hero .big { display: block; font-size: 3rem; line-height: 1.05; font-weight: 700; letter-spacing: -0.035em; color: var(--good); }
+.streak { text-align: right; }
+.streak b { display: block; font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; }
+.streak span { display: block; font-size: .85rem; }
+.bar { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--card-2); margin: 1rem 0 .7rem; }
+.bar .seg { display: block; height: 100%; }
+.seg.earned, .dot.earned { background: var(--good); }
+.seg.pending, .dot.pending { background: var(--accent); }
+.seg.open, .dot.open { background: #c7c7cc; }
+.seg.missed, .dot.missed { background: var(--bad); opacity: .55; }
+@media (prefers-color-scheme: dark) { .seg.open, .dot.open { background: #48484a; } }
+.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font-size: .88rem; }
+.legend b { margin-left: .25rem; }
+.dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .35rem; vertical-align: 0; }
+.inline-form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.inline-form input { font: inherit; font-size: .88rem; padding: .35rem .6rem; border-radius: var(--radius-sm);
+                     border: 1px solid transparent; background: var(--card-2); color: var(--ink); }
+.inline-form input:focus, .points-table input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+input.pts { width: 4.5rem; }
+.points-table input { font: inherit; font-size: .9rem; padding: .3rem .5rem; border-radius: 8px; border: 1px solid transparent;
+                      background: var(--card-2); color: var(--ink); }
+.points-table tr.done td:first-child { color: var(--muted); }
+.game-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .55rem; }
+.game-row { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; justify-content: space-between; padding: .85rem 1.1rem; }
+.g-main { flex: 1 1 260px; min-width: 0; }
+.stake { font-weight: 700; color: var(--good); }
+.settings-row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; justify-content: space-between; }
+.settings-row p { margin: .2rem 0 0; }
+.sticky-save { position: sticky; bottom: 0; padding: .8rem 0; background: var(--bg); }
+fieldset.who { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; }
+fieldset.who legend { font-weight: 500; font-size: .9rem; color: var(--muted); margin-bottom: .35rem; }
+.item .verify-note { font-size: .85rem; color: var(--urgent); margin-top: .2rem; }
+.vtag { font-size: .72rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; margin-left: .35rem; vertical-align: 1px; }
+.vtag.pending { background: var(--accent-soft); color: var(--link); }
+.vtag.verified { background: rgba(36, 138, 61, .14); color: var(--good); }

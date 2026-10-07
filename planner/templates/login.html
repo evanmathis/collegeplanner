@@ -4,7 +4,28 @@
 <h1>Log in</h1>
 <form method="post" class="form narrow">
   <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-  <label>Password <input type="password" name="password" autofocus></label>
+  <fieldset class="who">
+    <legend>Who's this?</legend>
+    <label class="check-row"><input type="radio" name="who" value="{{ student }}" checked> {{ student }}</label>
+    {% for p in parents %}<label class="check-row"><input type="radio" name="who" value="{{ p }}"> {{ p }}</label>{% endfor %}
+  </fieldset>
+  <label>Password <input type="password" name="password" autocomplete="current-password" autofocus></label>
+  {% if pin_needed %}
+  <label class="parent-pin">Parent PIN <small>(parents only)</small> <input type="password" name="pin" inputmode="numeric" autocomplete="off"></label>
+  {% endif %}
   <div class="buttons"><button class="btn primary">Log in</button></div>
 </form>
+<script>
+  // Show the PIN box only when a parent is picked.
+  (function () {
+    var pin = document.querySelector('.parent-pin');
+    if (!pin) return;
+    function update() {
+      var who = document.querySelector('input[name=who]:checked');
+      pin.hidden = !who || who.value === {{ student|tojson }};
+    }
+    document.querySelectorAll('input[name=who]').forEach(function (r) { r.addEventListener('change', update); });
+    update();
+  })();
+</script>
 {% endblock %}

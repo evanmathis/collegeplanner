@@ -108,7 +108,9 @@ def test_password_required_when_set(tmp_path):
     c = app.test_client()
     assert c.get("/").status_code == 302
     c.get("/login")
-    c.post("/login", data={"password": "pw"})
+    c.post("/login", data={"password": "wrong", "who": "Cian"})
+    assert c.get("/").status_code == 302
+    c.post("/login", data={"password": "pw", "who": "Cian"})
     assert c.get("/").status_code == 200
 
 
@@ -133,7 +135,7 @@ def test_calendar_download_and_feed(tmp_path):
         dl.done = True
         db.session.commit()
     assert "20261204" not in c.get("/calendar/s3cret.ics").get_data(as_text=True)
-    c.post("/login", data={"password": "pw"})
+    c.post("/login", data={"password": "pw", "who": "Cian"})
     r = c.get("/calendar.ics")
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
     assert c.get("/calendar").status_code == 200

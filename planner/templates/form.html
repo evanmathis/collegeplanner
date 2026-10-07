@@ -21,6 +21,8 @@
           <option value="">All schools / general</option>
           {% for s in schools %}<option value="{{ s.id }}" {{ 'selected' if s.id == value }}>{{ s.name }}</option>{% endfor %}
         </select>
+      {% elif type == 'int' %}
+        <input type="number" min="0" step="1" name="{{ name }}" value="{{ value if value is not none else '' }}"{% if is_new %} placeholder="Leave blank for the usual amount"{% endif %}>
       {% elif type == 'date' %}
         <input type="date" name="{{ name }}" value="{{ value.isoformat() if value and value.isoformat else (value or '') }}">
       {% else %}
