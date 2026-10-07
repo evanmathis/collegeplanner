@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import toggle, actions, when, csrf with context %}
+{% block title %}Paying for college{% endblock %}
+{% block content %}
+<h1>Paying for college</h1>
+
+<details class="guide" open>
+  <summary>How financial aid works for this list</summary>
+  <ol>
+    <li><b>FAFSA or CA Dream Act Application.</b> Opens Oct 1. File one (not both) and list every school. It decides federal grants (Pell), Cal Grant, and each campus's own grants. File early; some aid runs out.</li>
+    <li><b>Cal Grant GPA.</b> Your high school sends your GPA to the state. Confirm with the counselor that it's sent by March 2.</li>
+    <li><b>March 2</b> is the Cal Grant deadline and the priority aid date for every UC and CSU here. Treat it as the real deadline.</li>
+    <li><b>Application fee waivers.</b> UC and Cal State Apply each check eligibility inside the application based on family income. UC covers up to four campuses. Some music supplements (UCLA's Acceptd fee) are separate.</li>
+    <li><b>Compare offers.</b> After admission each school sends an aid offer. Log questions about them on the Questions page.</li>
+  </ol>
+</details>
+
+<section>
+  <div class="head"><h2>Aid deadlines</h2><a class="btn small" href="{{ url_for('planner.edit', kind='deadline', f_kind='Financial aid', next=request.path) }}">Add</a></div>
+  <ul class="items">
+  {% for d in aid_deadlines %}
+    <li class="item {{ 'done' if d.done }}">{{ toggle('deadline', d) }}
+      <div class="body"><div class="line1">{{ d.title }} {% if d.school %}<a class="school" href="{{ url_for('planner.school_detail', id=d.school.id) }}">{{ d.school.name }}</a>{% else %}<span class="school muted">All schools</span>{% endif %}</div>
+        {% if d.notes %}<div class="notes">{{ d.notes }}</div>{% endif %}</div>
+      {{ when(d.due_date) }}</li>
+  {% else %}<li class="muted">No aid deadlines yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <div class="head"><h2>Aid tasks</h2><a class="btn small" href="{{ url_for('planner.edit', kind='task', f_category='Financial aid', next=request.path) }}">Add</a></div>
+  <ul class="items">
+  {% for t in aid_tasks %}
+    <li class="item {{ 'done' if t.done }}">{{ toggle('task', t) }}
+      <div class="body"><div class="line1">{{ t.title }}</div>{{ actions('task', t) }}</div>
+      {% if t.due_date %}{{ when(t.due_date) }}{% endif %}</li>
+  {% else %}<li class="muted">No aid tasks yet.</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <h2>Application fee waivers</h2>
+  <table class="grid">
+    <thead><tr><th>School</th><th>Applies through</th><th>Fee waiver</th></tr></thead>
+    <tbody>
+    {% for s in schools %}
+      <tr>
+        <td><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a></td>
+        <td>{{ s.app_platform }}</td>
+        <td>
+          <form method="post" action="{{ url_for('planner.set_fee_waiver', id=s.id) }}" class="inline">
+            {{ csrf() }}<input type="hidden" name="next" value="{{ request.path }}">
+            <select name="fee_waiver" onchange="this.form.submit()">
+              {% for v in fee_waiver_statuses %}<option {{ 'selected' if v == s.fee_waiver }}>{{ v }}</option>{% endfor %}
+            </select>
+            <noscript><button>Save</button></noscript>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section id="scholarships">
+  <h2>Scholarships</h2>
+  <div class="card aid-sch">
+    <span>{{ sch_counts.total }} scholarships researched: <b>{{ sch_counts.interested }}</b> marked interested, <b>{{ sch_counts.applied }}</b> applied.</span>
+    <a class="btn small primary" href="{{ url_for('planner.scholarships') }}">Open Scholarships</a>
+  </div>
+</section>
+{% endblock %}

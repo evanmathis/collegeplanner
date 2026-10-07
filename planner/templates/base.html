@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <title>{% block title %}College Planner{% endblock %} · College Planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="{{ url_for('planner.dashboard') }}">College Planner</a>
+  <nav>
+    <a href="{{ url_for('planner.dashboard') }}" {% if request.endpoint in ['planner.dashboard'] %}class="active" aria-current="page"{% endif %}>Home</a>
+    <a href="{{ url_for('planner.timeline') }}" {% if request.endpoint in ['planner.timeline'] %}class="active" aria-current="page"{% endif %}>Timeline</a>
+    <a href="{{ url_for('planner.schools') }}" {% if request.endpoint in ['planner.schools', 'planner.school_detail'] %}class="active" aria-current="page"{% endif %}>Schools</a>
+    <a href="{{ url_for('planner.tasks') }}" {% if request.endpoint in ['planner.tasks'] %}class="active" aria-current="page"{% endif %}>Tasks</a>
+    <a href="{{ url_for('planner.aid') }}" {% if request.endpoint in ['planner.aid'] %}class="active" aria-current="page"{% endif %}>Paying for college</a>
+    <a href="{{ url_for('planner.scholarships') }}" {% if request.endpoint in ['planner.scholarships'] %}class="active" aria-current="page"{% endif %}>Scholarships</a>
+    <a href="{{ url_for('planner.questions') }}" {% if request.endpoint in ['planner.questions'] %}class="active" aria-current="page"{% endif %}>Questions</a>
+    <a href="{{ url_for('planner.calendar') }}" {% if request.endpoint in ['planner.calendar'] %}class="active" aria-current="page"{% endif %}>Calendar</a>
+    {% if login_enabled and session.logged_in %}
+    <form method="post" action="{{ url_for('planner.logout') }}" class="inline">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <button class="link">Log out</button>
+    </form>
+    {% endif %}
+  </nav>
+</header>
+{% if request.endpoint != 'planner.login' and (not login_enabled or session.logged_in) %}
+{% set nxt = up_next() %}
+{% from "_macros.html" import toggle with context %}
+<details class="upnext" id="upnext" open>
+  <summary>
+    <b>Up next</b>
+    {% if nxt.counts.overdue %}<span class="alert alert-overdue">{{ nxt.counts.overdue }} overdue</span>{% endif %}
+    {% if nxt.counts.urgent %}<span class="alert alert-urgent">{{ nxt.counts.urgent }} due within 3 days</span>{% endif %}
+    {% if nxt.counts.soon %}<span class="alert alert-soon">{{ nxt.counts.soon }} due within 2 weeks</span>{% endif %}
+    {% if not (nxt.counts.overdue or nxt.counts.urgent or nxt.counts.soon) %}<span class="muted small">Nothing due in the next 2 weeks</span>{% endif %}
+  </summary>
+  <ul>
+    {% for i in nxt["items"] %}
+    {% set days = (i.date - today).days %}
+    <li class="u-{{ i.urgency }}">
+      {% if i.kind in ('deadline', 'task') %}{{ toggle(i.kind, i.obj) }}{% else %}<span class="check ghost">$</span>{% endif %}
+      <span class="u-title">{{ i.title }}{% if i.school %} <a class="school" href="{{ url_for('planner.school_detail', id=i.school.id) }}">{{ i.school.name }}</a>{% endif %}</span>
+      <span class="u-days">{% if days < 0 %}{{ -days }}d overdue{% elif days == 0 %}today{% elif days == 1 %}tomorrow{% else %}{{ days }} days{% endif %}<small>{{ i.date.strftime('%b %-d') }}</small></span>
+    </li>
+    {% else %}
+    <li class="muted">Nothing open with a date. Nice.</li>
+    {% endfor %}
+  </ul>
+  {% if nxt.total > nxt["items"]|length %}<a class="more" href="{{ url_for('planner.timeline') }}">See all {{ nxt.total }} on the timeline</a>{% endif %}
+</details>
+<script>
+  // Start collapsed on phones; remember the choice for this browser.
+  (function () {
+    var d = document.getElementById('upnext'), key = 'upnext-open';
+    try { var saved = localStorage.getItem(key); } catch (e) {}
+    if (saved === '0' || (saved === null && window.innerWidth < 700)) d.removeAttribute('open');
+    d.addEventListener('toggle', function () {
+      try { localStorage.setItem(key, d.open ? '1' : '0'); } catch (e) {}
+    });
+  })();
+</script>
+{% endif %}
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

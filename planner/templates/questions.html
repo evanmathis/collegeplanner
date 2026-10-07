@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import toggle, actions with context %}
+{% block title %}Questions{% endblock %}
+{% block content %}
+<div class="head"><h1>Questions</h1><a class="btn" href="{{ url_for('planner.edit', kind='question') }}">Log a question</a></div>
+<p class="muted">Write down anything you're unsure about, from what a requirement means to how to get started. Add the answer when you find it.</p>
+<ul class="items">
+{% for q in questions %}
+  <li class="item {{ 'done' if q.done }}">{{ toggle('question', q, 'Answered', 'Mark answered') }}
+    <div class="body"><div class="line1"><span class="tag">{{ q.topic }}</span> {{ q.question }}
+      {% if q.school %}<a class="school" href="{{ url_for('planner.school_detail', id=q.school.id) }}">{{ q.school.name }}</a>{% endif %}</div>
+      {% if q.answer %}<div class="notes"><b>Answer:</b> {{ q.answer }}</div>{% else %}<div class="notes muted">No answer yet.</div>{% endif %}
+      {{ actions('question', q) }}</div>
+    <span class="when"><small>{{ q.created_at.strftime('%b %-d, %Y') }}</small></span></li>
+{% else %}<li class="muted">No questions logged yet.</li>{% endfor %}
+</ul>
+{% endblock %}

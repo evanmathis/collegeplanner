@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Schools{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Schools</h1>
+  <a class="btn" href="{{ url_for('planner.edit', kind='school') }}">Add school</a>
+</div>
+
+<h2>Your list</h2>
+<table class="grid">
+  <thead><tr><th>School</th><th>Program</th><th>Status</th><th>Next deadline</th><th>Left to do</th></tr></thead>
+  <tbody>
+  {% for s in active %}
+    {% set nd = s.next_deadline() %}
+    <tr>
+      <td><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a> <small class="muted">{{ s.system or '' }}</small></td>
+      <td><small>{{ s.degree or '' }}</small></td>
+      <td><span class="status status-{{ s.status|lower }}">{{ s.status }}</span></td>
+      <td>{% if nd %}{{ nd.due_date.strftime('%b %-d, %Y') }}<br><small class="muted">{{ nd.title }}</small>{% elif s.app_deadline_note %}<small>{{ s.app_deadline_note }}</small>{% else %}<span class="muted">none</span>{% endif %}</td>
+      <td>{{ s.open_items()|length }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">No schools kept yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if deciding %}
+<h2 id="deciding">Still deciding</h2>
+<p class="muted">Keep a school to put it on your list, timeline and calendar. Remove it if it's not for you; you can bring it back any time.</p>
+{% for group, items in deciding %}
+<h3>{{ group }} <small class="muted">({{ items|length }})</small></h3>
+<ul class="ideas">
+  {% for s in items %}
+  <li>
+    <div class="idea-head">
+      <span><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a>
+        <small class="muted">{{ [s.city, s.country if s.country not in ('USA', None, '') else '']|select|join(', ') }}{% if s.school_type %} · {{ s.school_type }}{% endif %}</small></span>
+      {% include "_choose.html" %}
+    </div>
+    {% if s.notes %}<small>{{ s.notes }}</small>{% endif %}
+    {% if s.cost or s.app_deadline_note %}<br><small class="muted">{% if s.app_deadline_note %}Deadline: {{ s.app_deadline_note }}{% endif %}{% if s.cost and s.app_deadline_note %} · {% endif %}{% if s.cost %}Cost: {{ s.cost }}{% endif %}</small>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endif %}
+
+{% if removed %}
+<details class="removed">
+  <summary>Removed ({{ removed|length }})</summary>
+  <ul class="ideas">
+    {% for s in removed %}
+    <li><div class="idea-head"><a href="{{ url_for('planner.school_detail', id=s.id) }}">{{ s.name }}</a>{% include "_choose.html" %}</div></li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}
