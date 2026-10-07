@@ -185,3 +185,19 @@ def test_old_database_gets_new_columns(tmp_path):
         ucla = School.query.one()
         assert ucla.abroad_steps is None and ucla.on_list
     assert app.test_client().get("/schools/1").status_code == 200
+
+
+def test_calendar_alarms_two_weeks_one_week_then_daily(tmp_path):
+    from datetime import datetime, timedelta
+    icalendar = pytest.importorskip("icalendar")
+    app = create_app({"TESTING": True, "CALENDAR_TOKEN": "t",
+                      "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'a.db'}"})
+    seed(app)
+    body = app.test_client().get("/calendar/t.ics").data
+    cal = icalendar.Calendar.from_ical(body)
+    event = next(e for e in cal.walk("VEVENT") if "UCLA" in str(e["SUMMARY"]))
+    start = datetime.combine(event["DTSTART"].dt, datetime.min.time())
+    fire = sorted(start + a["TRIGGER"].dt for a in event.walk("VALARM"))
+    due = start.date()
+    assert [(due - f.date()).days for f in fire] == [14, 7, 6, 5, 4, 3, 2, 1, 0]
+    assert all(f.hour == 9 and f.minute == 0 for f in fire)

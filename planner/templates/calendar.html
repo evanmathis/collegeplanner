@@ -2,7 +2,7 @@
 {% block title %}Calendar{% endblock %}
 {% block content %}
 <h1>Put due dates on your calendar</h1>
-<p>{{ count }} open deadlines, dated tasks and scholarship deadlines become all-day events, each with a reminder at 9am the day before. Finished items are left out.</p>
+<p>{{ count }} open deadlines, dated tasks and scholarship deadlines become all-day events, each with reminders at 9am two weeks before, one week before, and then every day until it's due. Finished items are left out.</p>
 
 <section>
   <h2>Option 1: Subscribe (stays up to date)</h2>
@@ -10,8 +10,8 @@
   <p>Your calendar app checks the planner every few hours, so new dates and changes show up on their own and finished items drop off.</p>
   <ul class="plain">
     <li><b>iPhone / iPad / Mac:</b> <a class="btn small" href="{{ webcal_url }}">Subscribe in Apple Calendar</a>
-      <br><small class="muted">Or in Calendar on a Mac: File › New Calendar Subscription, and paste the address below. Choose "iCloud" as the location so it shows on every device.</small></li>
-    <li><b>Google Calendar:</b> Other calendars › + › From URL, and paste the address below.</li>
+      <br><small class="muted">Or in Calendar on a Mac: File › New Calendar Subscription, and paste the address below. Choose "iCloud" as the location so it shows on every device, and <b>untick "Remove: Alerts"</b> or the reminders are dropped.</small></li>
+    <li><b>Google Calendar:</b> Other calendars › + › From URL, and paste the address below. Google ignores a feed's reminders, so set your own there.</li>
   </ul>
   <label class="copy">Feed address (keep it private; anyone with it can see the dates)
     <input type="text" readonly value="{{ feed_url }}" onclick="this.select()">

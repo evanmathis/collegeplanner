@@ -3,6 +3,20 @@ from datetime import datetime, timedelta, timezone
 
 PRODID = "-//College Planner//EN"
 
+# Reminders at 9am: two weeks out, one week out, then every day until the due date.
+# All-day events start at midnight, so "N days before at 9am" is N-1 days and 15 hours
+# before the start, and 9am on the day itself is 9 hours after it.
+ALARM_DAYS = [14, 7, 6, 5, 4, 3, 2, 1, 0]
+
+
+def _trigger(days_before):
+    if days_before == 0:
+        return "PT9H"
+    return f"-P{days_before - 1}DT15H" if days_before > 1 else "-PT15H"
+
+
+ALARMS = [(d, _trigger(d)) for d in ALARM_DAYS]
+
 
 def escape(text):
     return (str(text or "").replace("\\", "\\\\").replace(";", "\\;")
@@ -25,7 +39,8 @@ def fold(line):
 
 
 def build_calendar(items, planner_url, name="College Planner"):
-    """items: dicts from views.timeline_items(). Each becomes an all-day event.
+    """items: dicts from views.timeline_items(). Each becomes an all-day event with
+    the ALARMS reminders.
 
     UIDs come from the record type and id, so when a date or title changes the
     calendar app updates the existing event instead of adding a second one.
@@ -53,10 +68,13 @@ def build_calendar(items, planner_url, name="College Planner"):
             f"URL:{planner_url}",
             f"CATEGORIES:{escape(item['label'])}",
             "TRANSP:TRANSPARENT",
-            # Reminder at 9am the day before (all-day events start at midnight).
-            "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{escape(summary)}",
-            "TRIGGER:-PT15H", "END:VALARM",
-            "END:VEVENT",
         ]
+        for days_before, trigger in ALARMS:
+            when = "today" if days_before == 0 else (
+                "tomorrow" if days_before == 1 else f"in {days_before} days")
+            lines += ["BEGIN:VALARM", "ACTION:DISPLAY",
+                      f"DESCRIPTION:{escape(f'Due {when}: {summary}')}",
+                      f"TRIGGER:{trigger}", "END:VALARM"]
+        lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     return "\r\n".join(fold(line) for line in lines) + "\r\n"

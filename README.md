@@ -19,7 +19,8 @@ DreamHost.
 ## Due dates on your calendar
 
 The **Calendar** page puts every open deadline, dated task and scholarship deadline
-on Apple Calendar (or Google/Outlook) as all-day events with a reminder the day before.
+on Apple Calendar (or Google/Outlook) as all-day events with reminders at 9am two weeks before, one week before, then daily
+until the due date (on a Mac, untick "Remove: Alerts" when subscribing).
 There are two ways, with a tradeoff:
 
 - **Subscribe** (recommended): the calendar app re-reads the planner every few hours,
