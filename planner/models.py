@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from datetime import date, datetime
 
 from . import db
@@ -13,7 +14,24 @@ FEE_WAIVER_STATUSES = ["Not checked", "Eligible", "Requested", "Granted", "Not e
 DEADLINE_KINDS = ["Application", "Music", "Financial aid", "Scholarship", "Other"]
 TASK_CATEGORIES = ["Application", "High school", "Music", "Financial aid", "Testing", "General"]
 QUESTION_TOPICS = ["General", "Application", "Music", "Financial aid", "Scholarships"]
-SCHOLARSHIP_STATUSES = ["Researching", "Applying", "Submitted", "Awarded", "Not awarded"]
+# "Interested" is the only status that puts a scholarship's deadline on the timeline,
+# header alerts and calendar. Older databases used Researching / Applying / Submitted.
+SCHOLARSHIP_STATUSES = ["Not applied", "Interested", "Applied", "Awarded", "Not awarded", "Skip"]
+OLD_SCHOLARSHIP_STATUSES = {"Researching": "Not applied", "Applying": "Interested",
+                            "Submitted": "Applied"}
+SCHOLARSHIP_TYPES = OrderedDict([
+    ("music_competition", "Composition and music contests"),
+    ("school_music_talent", "School music awards"),
+    ("school_merit", "School merit awards"),
+    ("state_aid", "State aid"),
+    ("general_merit", "General scholarships"),
+    ("fee_waiver", "Application fee waivers"),
+    ("other", "Other"),
+])
+
+
+SCHOOL_ALIASES = {"UCSB": "UC Santa Barbara", "UCI": "UC Irvine", "CSULB": "CSU Long Beach",
+                  "CSUN": "CSU Northridge"}
 
 
 class School(db.Model):
@@ -118,5 +136,44 @@ class Scholarship(db.Model):
     deadline = db.Column(db.Date, nullable=True)
     url = db.Column(db.String(500), default="")
     requirements = db.Column(db.Text, default="")
-    status = db.Column(db.String(30), default="Researching")
+    status = db.Column(db.String(30), default="Not applied")
     notes = db.Column(db.Text, default="")
+    category = db.Column(db.String(30), default="other")  # a SCHOLARSHIP_TYPES key
+    apply_url = db.Column(db.String(500), default="")
+    # Which schools it's for: school names, "UC" / "CSU" style groups, or "outside".
+    applies_to = db.Column(db.Text, default="")
+    # Deadline as the provider states it, for dates too vague to put on the timeline.
+    deadline_note = db.Column(db.String(255), default="")
+    # Whether the link opened when checked; "blocked..." means open it in a browser.
+    link_check = db.Column(db.String(120), default="")
+
+    @property
+    def interested(self):
+        return self.status == "Interested"
+
+    @property
+    def finished(self):
+        return self.status in ("Applied", "Awarded", "Not awarded", "Skip")
+
+    @property
+    def needs_browser(self):
+        check = (self.link_check or "").lower()
+        return check.startswith("blocked") or check.startswith("not checked")
+
+    @property
+    def type_label(self):
+        return SCHOLARSHIP_TYPES.get(self.category or "other", "Other")
+
+    def for_school(self, school):
+        """True when the scholarship is tied to this school, by name or by system."""
+        for part in (self.applies_to or "").split(";"):
+            part = part.strip()
+            name = SCHOOL_ALIASES.get(part, part)
+            if name.lower() == school.name.lower():
+                return True
+            if part == "UC and CSU schools" and school.system in ("UC", "CSU"):
+                return True
+            if part.startswith("UC, CSU") and school.system in ("UC", "CSU",
+                                                                 "California private"):
+                return True
+        return False

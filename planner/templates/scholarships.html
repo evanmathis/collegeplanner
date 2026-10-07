@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "_macros.html" import when, csrf with context %}
+{% block title %}Scholarships{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Scholarships</h1>
+  <a class="btn small" href="{{ url_for('planner.edit', kind='scholarship', next=request.full_path) }}">Add scholarship</a>
+</div>
+<p class="lede">Mark the ones worth going for as <b>Interested</b>. Their deadlines then show on the timeline, in Up next and on the calendar. One composition portfolio (3 scores with recordings) covers most of the music awards.</p>
+
+<div class="counts">
+  <a href="{{ url_for('planner.scholarships', show='Interested', when='all') }}"><b>{{ counts['Interested'] }}</b> interested</a>
+  <a href="{{ url_for('planner.scholarships', show='Applied', when='all') }}"><b>{{ counts['Applied'] + counts['Awarded'] + counts['Not awarded'] }}</b> applied</a>
+  <a href="{{ url_for('planner.scholarships', show='Not applied', when='all') }}"><b>{{ counts['Not applied'] }}</b> not applied</a>
+  <a href="{{ url_for('planner.scholarships', show='Skip', when='all') }}"><b>{{ counts['Skip'] }}</b> skipped</a>
+</div>
+
+<form class="filters" method="get" action="{{ url_for('planner.scholarships') }}">
+  <label>Type
+    <select name="type" onchange="this.form.submit()">
+      <option value="">All types</option>
+      {% for key, label in types.items() %}<option value="{{ key }}" {{ 'selected' if f.type == key }}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <label>Deadline
+    <select name="when" onchange="this.form.submit()">
+      {% for key, label in whens.items() %}<option value="{{ key }}" {{ 'selected' if f.when == key }}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <label>School
+    <select name="school" onchange="this.form.submit()">
+      <option value="">Any school</option>
+      <option value="outside" {{ 'selected' if f.school == 'outside' }}>Not tied to a school</option>
+      {% for s in schools %}<option value="{{ s.id }}" {{ 'selected' if f.school == s.id|string }}>{{ s.name }}</option>{% endfor %}
+    </select></label>
+  <label>Status
+    <select name="show" onchange="this.form.submit()">
+      {% for key, label in shows.items() %}<option value="{{ key }}" {{ 'selected' if f.show == key }}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <noscript><button class="btn small">Filter</button></noscript>
+  {% if filtered %}<a class="clear" href="{{ url_for('planner.scholarships') }}">Clear</a>{% endif %}
+</form>
+
+<p class="muted small">Showing {{ scholarships|length }} of {{ total }}.</p>
+<ul class="sch-list">
+{% for s in scholarships %}
+  <li class="sch {{ 'is-' ~ s.status|lower|replace(' ', '-') }}" id="s{{ s.id }}">
+    <div class="sch-head">
+      <div class="sch-title">
+        <span class="tag tag-{{ s.category or 'other' }}">{{ s.type_label }}</span>
+        {% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}
+      </div>
+      <div class="sch-when">
+        {% if s.deadline %}{{ when(s.deadline) }}{% else %}<span class="when"><small>{{ s.deadline_note or 'No set date' }}</small></span>{% endif %}
+      </div>
+    </div>
+    <div class="sch-meta">
+      {% if s.amount %}<span class="amount">{{ s.amount }}</span>{% endif %}
+      <span class="for">{% if tied[s.id] %}For {% for sc in tied[s.id] %}<a href="{{ url_for('planner.school_detail', id=sc.id) }}">{{ sc.name }}</a>{{ ', ' if not loop.last }}{% endfor %}
+        {% elif s.applies_to and s.applies_to != 'outside' %}For {{ s.applies_to }}{% else %}Any school{% endif %}</span>
+    </div>
+    {% if s.deadline and s.deadline_note and s.deadline_note != s.deadline.isoformat() %}<div class="sch-note"><b>Deadline:</b> {{ s.deadline_note }}</div>{% endif %}
+    {% if s.requirements %}<div class="sch-note"><b>Who can apply:</b> {{ s.requirements }}</div>{% endif %}
+    {% if s.notes %}<div class="sch-note">{{ s.notes }}</div>{% endif %}
+    <div class="sch-foot">
+      <form method="post" action="{{ url_for('planner.set_scholarship_status', id=s.id) }}" class="seg" aria-label="Status">
+        {{ csrf() }}<input type="hidden" name="next" value="{{ request.full_path }}">
+        {% for c in choices %}
+        <button name="status" value="{{ c }}" class="{{ 'on' if s.status == c or (c == 'Applied' and s.status in ('Awarded', 'Not awarded')) }}"
+                {% if s.status == c %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>{{ c }}</button>
+        {% endfor %}
+      </form>
+      {% if s.status in ('Awarded', 'Not awarded') %}<span class="status">{{ s.status }}</span>{% endif %}
+      <span class="sch-links">
+        {% if s.apply_url %}<a class="btn small primary" href="{{ s.apply_url }}" target="_blank" rel="noopener">Apply</a>{% endif %}
+        {% if s.needs_browser %}<span class="browser" title="{{ s.link_check }}">Opens in a browser only</span>{% endif %}
+        <a class="small" href="{{ url_for('planner.edit', kind='scholarship', id=s.id, next=request.full_path) }}">Edit</a>
+      </span>
+    </div>
+  </li>
+{% else %}
+  <li class="sch muted">Nothing matches these filters. {% if filtered %}<a href="{{ url_for('planner.scholarships') }}">Clear them</a>.{% endif %}</li>
+{% endfor %}
+</ul>
+
+<section class="explore">
+  <h2>Explore more</h2>
+  <div class="explore-grid">
+    <div class="card">
+      <h3>Search sites</h3>
+      <p class="small muted">All free. Use a separate email address; they send a lot of marketing.</p>
+      <ul class="plain">
+        <li><a href="https://student.naviance.com/" target="_blank" rel="noopener">Venice High scholarship list (Naviance)</a> <span class="small muted">Best odds: local Rotary, Kiwanis, PTA and credit-union awards. Few students apply.</span></li>
+        <li><a href="https://bigfuture.collegeboard.org/scholarships" target="_blank" rel="noopener">BigFuture (College Board)</a></li>
+        <li><a href="https://www.fastweb.com/" target="_blank" rel="noopener">Fastweb</a></li>
+        <li><a href="https://www.scholarships.com/" target="_blank" rel="noopener">Scholarships.com</a></li>
+        <li><a href="https://www.goingmerry.com/" target="_blank" rel="noopener">Going Merry</a></li>
+        <li><a href="https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx" target="_blank" rel="noopener">CareerOneStop (US Dept. of Labor)</a> <span class="browser">Opens in a browser only</span></li>
+      </ul>
+    </div>
+    <div class="card warn">
+      <h3>Watch out for scams</h3>
+      <ul>
+        <li>Never pay to apply, to "hold" an award, or to file the FAFSA. The FAFSA is free.</li>
+        <li>No real scholarship is "guaranteed".</li>
+        <li>"You're a finalist" for something Cian never entered is a scam.</li>
+        <li>Skip paid search services and financial-aid seminars.</li>
+        <li>"No-essay" sweepstakes mostly collect contact details; the odds are a lottery.</li>
+      </ul>
+      <p class="small"><a href="https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams" target="_blank" rel="noopener">FTC: avoiding scholarship scams</a> · <a href="https://studentaid.gov/resources/scams" target="_blank" rel="noopener">Federal Student Aid: scams</a></p>
+    </div>
+  </div>
+</section>
+{% endblock %}

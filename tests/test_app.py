@@ -5,9 +5,10 @@ from datetime import date
 import pytest
 
 from planner import create_app, db
-from planner.models import Deadline, Link, Question, School, Task
+from planner.models import Deadline, Link, Question, Scholarship, School, Task
 from planner.seed import (DATA_DIR, import_more_schools, import_school_details, import_schools,
-                          import_suggestions, import_tasks, parse_dates)
+                          import_scholarships, import_suggestions, import_tasks,
+                          parse_dates, scholarship_deadline)
 
 
 @pytest.fixture
@@ -35,6 +36,7 @@ def seed(app):
         import_tasks(os.path.join(DATA_DIR, "tasks.csv"))
         import_more_schools(os.path.join(DATA_DIR, "more_schools.csv"))
         import_school_details(os.path.join(DATA_DIR, "school_details.csv"))
+        import_scholarships(os.path.join(DATA_DIR, "scholarships.csv"))
 
 
 def test_parse_dates_reuses_year():
@@ -64,7 +66,8 @@ def test_every_page_renders(app, client):
     for path in ["/", "/timeline", "/timeline?done=1", "/schools", "/schools/1", "/tasks",
                  "/questions", "/aid", "/school/new", "/deadline/new?f_school_id=1",
                  "/task/new?f_category=Financial+aid", "/question/new", "/scholarship/new",
-                 "/link/new", "/deadline/1/edit"]:
+                 "/link/new", "/deadline/1/edit", "/scholarships", "/scholarship/1/edit",
+                 "/scholarships?type=state_aid&when=all&school=outside&show=Skip"]:
         assert client.get(path).status_code == 200, path
 
 
@@ -237,3 +240,68 @@ def test_header_up_next_and_alerts(app, client):
     assert "Overdue thing" in html and "1d overdue" in html
     # Undecided schools' dates don't count.
     assert "USC Thornton" not in html.split("<main>")[0]
+
+
+def test_scholarship_deadlines():
+    assert scholarship_deadline("2027-02-07") == date(2027, 2, 7)
+    assert scholarship_deadline("EA 2026-11-01; RD 2027-01-15") == date(2026, 11, 1)
+    assert scholarship_deadline("2027 date not posted yet (2026 deadline was 2026-01-15)") is None
+    assert scholarship_deadline("Admission deadlines") is None
+
+
+def test_scholarships_seed_keeps_status_and_only_interested_feed_calendar(app, client):
+    seed(app)
+    with app.app_context():
+        rows = Scholarship.query.all()
+        assert len(rows) == 35  # search sites and scam warnings go under Explore more
+        assert all(s.status == "Not applied" for s in rows)
+        ascap = Scholarship.query.filter(Scholarship.name.like("ASCAP%")).one()
+        assert ascap.deadline == date(2027, 2, 7) and ascap.needs_browser
+        elks = Scholarship.query.filter(Scholarship.name.like("Elks%")).one()
+        ascap_id, elks_id = ascap.id, elks.id
+    feed = client.get("/calendar.ics").get_data(as_text=True)
+    assert "ASCAP" not in feed
+
+    token = csrf(client)
+    client.post(f"/scholarships/{ascap_id}/status", data={"_csrf": token, "status": "Interested"})
+    client.post(f"/scholarships/{elks_id}/status", data={"_csrf": token, "status": "Skip"})
+    seed(app)  # re-seeding never touches statuses
+    with app.app_context():
+        assert db.session.get(Scholarship, ascap_id).status == "Interested"
+        assert db.session.get(Scholarship, elks_id).status == "Skip"
+        assert Scholarship.query.count() == 35
+    assert "ASCAP" in client.get("/calendar.ics").get_data(as_text=True)
+    assert "ASCAP" in client.get("/timeline").get_data(as_text=True)
+    assert "Elks" not in client.get("/scholarships").get_data(as_text=True)
+    assert "Elks" in client.get("/scholarships?show=Skip&when=all").get_data(as_text=True)
+
+
+def test_scholarship_filters(app, client):
+    seed(app)
+    with app.app_context():
+        ucla = School.query.filter_by(name="UCLA").one().id
+        fullerton = School.query.filter_by(name="CSU Fullerton").one().id
+    html = client.get(f"/scholarships?school={ucla}&when=all").get_data(as_text=True)
+    assert "UCLA Alumni Scholarships" in html and "Middle Class Scholarship" in html
+    assert "Berklee" not in html and "ASCAP" not in html
+    html = client.get(f"/scholarships?school={fullerton}&when=all").get_data(as_text=True)
+    assert "CSU application fee waiver" in html
+    html = client.get("/scholarships?type=music_competition&when=all").get_data(as_text=True)
+    assert "ASCAP" in html and "Chapman" not in html
+    html = client.get("/scholarships").get_data(as_text=True)  # default: still open
+    assert "YoungArts" not in html and "Opens in a browser only" in html
+    assert "Explore more" in html and "Fastweb" in html
+    assert "YoungArts" in client.get("/scholarships?when=closed").get_data(as_text=True)
+    assert "Elks" in client.get("/scholarships?when=90&school=outside").get_data(as_text=True) \
+        or date.today() > date(2026, 11, 12)
+
+
+def test_old_scholarship_statuses_are_renamed(tmp_path):
+    uri = f"sqlite:///{tmp_path / 'old.db'}"
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": uri})
+    with app.app_context():
+        db.session.add(Scholarship(name="Old one", status="Applying", deadline=date(2030, 1, 1)))
+        db.session.commit()
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": uri})
+    with app.app_context():
+        assert Scholarship.query.one().status == "Interested"

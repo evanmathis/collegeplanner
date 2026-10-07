@@ -14,7 +14,8 @@
       {% if type == 'textarea' %}
         <textarea name="{{ name }}" rows="4">{{ value or '' }}</textarea>
       {% elif type == 'select' %}
-        <select name="{{ name }}">{% for c in choices %}<option {{ 'selected' if c == value }}>{{ c }}</option>{% endfor %}</select>
+        <select name="{{ name }}">{% if choices is mapping %}{% for c, label in choices.items() %}<option value="{{ c }}" {{ 'selected' if c == value }}>{{ label }}</option>{% endfor %}
+          {% else %}{% for c in choices %}<option {{ 'selected' if c == value }}>{{ c }}</option>{% endfor %}{% endif %}</select>
       {% elif type == 'school' %}
         <select name="{{ name }}">
           <option value="">All schools / general</option>

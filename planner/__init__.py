@@ -37,8 +37,18 @@ def create_app(config=None):
     with app.app_context():
         db.create_all()
         add_missing_columns()
+        rename_old_statuses()
 
     return app
+
+
+def rename_old_statuses():
+    """Scholarship statuses were renamed; carry Cian's old choices over."""
+    from .models import OLD_SCHOLARSHIP_STATUSES, Scholarship
+
+    for old, new in OLD_SCHOLARSHIP_STATUSES.items():
+        Scholarship.query.filter_by(status=old).update({"status": new})
+    db.session.commit()
 
 
 def add_missing_columns():

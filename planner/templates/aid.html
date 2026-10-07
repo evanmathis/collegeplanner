@@ -63,26 +63,10 @@
 </section>
 
 <section id="scholarships">
-  <div class="head"><h2>Scholarships</h2><a class="btn small" href="{{ url_for('planner.edit', kind='scholarship', next=request.path) }}">Add scholarship</a></div>
-  {% if scholarships %}
-  <table class="grid">
-    <thead><tr><th>Scholarship</th><th>Amount</th><th>Deadline</th><th>Status</th><th></th></tr></thead>
-    <tbody>
-    {% for s in scholarships %}
-      <tr>
-        <td>{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}
-          {% if s.provider %}<br><small class="muted">{{ s.provider }}</small>{% endif %}
-          {% if s.requirements %}<br><small>{{ s.requirements }}</small>{% endif %}</td>
-        <td>{{ s.amount }}</td>
-        <td>{% if s.deadline %}{{ when(s.deadline) }}{% else %}<span class="muted">rolling / unknown</span>{% endif %}</td>
-        <td>{{ s.status }}</td>
-        <td>{{ actions('scholarship', s) }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No scholarships yet. Good places to look: each school's scholarship portal (often one form after you're admitted), the music department's own awards, your high school counselor's list, and local clubs and foundations.</p>
-  {% endif %}
+  <h2>Scholarships</h2>
+  <div class="card aid-sch">
+    <span>{{ sch_counts.total }} scholarships researched: <b>{{ sch_counts.interested }}</b> marked interested, <b>{{ sch_counts.applied }}</b> applied.</span>
+    <a class="btn small primary" href="{{ url_for('planner.scholarships') }}">Open Scholarships</a>
+  </div>
 </section>
 {% endblock %}

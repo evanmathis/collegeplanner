@@ -13,7 +13,7 @@ from datetime import date
 import click
 
 from . import db
-from .models import Deadline, Link, School, Task
+from .models import SCHOLARSHIP_TYPES, Deadline, Link, Scholarship, School, Task
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
@@ -316,6 +316,57 @@ def import_tasks(path):
     return added
 
 
+ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+# Rows of these types are search sites and scam warnings, shown under "Explore more"
+# on the Scholarships page rather than as scholarships.
+NOT_SCHOLARSHIPS = ("search_site", "avoid")
+
+
+def scholarship_deadline(text):
+    """The first full date in the deadline text, unless the text says the date isn't out."""
+    if "not posted" in text.lower():
+        return None
+    m = ISO_DATE_RE.search(text)
+    try:
+        return date(*map(int, m.groups())) if m else None
+    except ValueError:
+        return None
+
+
+def import_scholarships(path):
+    """scholarships.csv: matched by name. New rows start as "Not applied"; for existing
+    ones only blank fields are filled, so Cian's status and edits are never overwritten."""
+    added = 0
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["type"] in NOT_SCHOLARSHIPS:
+                continue
+            name = row["name"].strip()
+            values = dict(
+                amount=row["amount"].strip(),
+                deadline=scholarship_deadline(row["deadline"]),
+                deadline_note=row["deadline"].strip()[:255],
+                url=row["link"].strip(),
+                apply_url=row["apply_link"].strip(),
+                requirements=row["eligibility"].strip(),
+                notes=row["notes"].strip(),
+                category=row["type"] if row["type"] in SCHOLARSHIP_TYPES else "other",
+                applies_to=row["applies_to"].strip(),
+                link_check=row["verified"].strip()[:120],
+            )
+            s = Scholarship.query.filter_by(name=name).first()
+            if s is None:
+                db.session.add(Scholarship(name=name, status="Not applied", **values))
+                added += 1
+                continue
+            for field, value in values.items():
+                if getattr(s, field) in (None, "") or (field == "category"
+                                                       and s.category == "other"):
+                    setattr(s, field, value)
+    db.session.commit()
+    return added
+
+
 def register_cli(app):
     @app.cli.command("seed")
     @click.option("--data-dir", default=DATA_DIR, show_default=True,
@@ -341,3 +392,6 @@ def register_cli(app):
         tasks = os.path.join(data_dir, "tasks.csv")
         if os.path.exists(tasks):
             click.echo(f"Added {import_tasks(tasks)} high school and application tasks.")
+        scholarships = os.path.join(data_dir, "scholarships.csv")
+        if os.path.exists(scholarships):
+            click.echo(f"Added {import_scholarships(scholarships)} scholarships.")

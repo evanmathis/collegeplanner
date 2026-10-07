@@ -32,7 +32,7 @@
   <div class="body">
     <div class="line1">
       <span class="tag tag-{{ item.label|lower|replace(' ', '-') }}">{{ item.label }}</span>
-      {% if item.kind == 'scholarship' %}<a href="{{ url_for('planner.aid') }}#scholarships">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+      {% if item.kind == 'scholarship' %}<a href="{{ url_for('planner.scholarships', when='all') }}#s{{ item.obj.id }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
       {% if item.school %}<a class="school" href="{{ url_for('planner.school_detail', id=item.school.id) }}">{{ item.school.name }}</a>{% elif item.kind != 'scholarship' %}<span class="school muted">All schools</span>{% endif %}
     </div>
     {% if item.obj.notes %}<div class="notes">{{ item.obj.notes }}</div>{% endif %}

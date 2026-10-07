@@ -9,7 +9,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect,
 from . import db
 from .ical import build_calendar
 from .models import (DEADLINE_KINDS, FEE_WAIVER_STATUSES, OFF_LIST, QUESTION_TOPICS,
-                     SCHOLARSHIP_STATUSES, SCHOOL_STATUSES, SCHOOL_SYSTEMS, TASK_CATEGORIES,
+                     SCHOLARSHIP_STATUSES, SCHOLARSHIP_TYPES, SCHOOL_STATUSES, SCHOOL_SYSTEMS, TASK_CATEGORIES,
                      UNDECIDED, Deadline, Link, Question, Scholarship, School, Task)
 
 bp = Blueprint("planner", __name__)
@@ -69,10 +69,14 @@ FORMS = {
     "scholarship": (Scholarship, "Scholarship", [
         ("name", "Name", "text", None),
         ("provider", "Offered by", "text", None),
+        ("category", "Type", "select", SCHOLARSHIP_TYPES),
         ("amount", "Amount", "text", None),
         ("deadline", "Deadline", "date", None),
-        ("url", "Link", "url", None),
-        ("requirements", "Requirements", "textarea", None),
+        ("deadline_note", "Deadline as stated (if no exact date)", "text", None),
+        ("url", "Info page", "url", None),
+        ("apply_url", "Apply link", "url", None),
+        ("applies_to", "For which schools (names separated by ;, or \"outside\")", "text", None),
+        ("requirements", "Who can apply", "textarea", None),
         ("status", "Status", "select", SCHOLARSHIP_STATUSES),
         ("notes", "Notes", "textarea", None),
     ]),
@@ -170,11 +174,11 @@ def timeline_items(include_done=False):
         if include_done or not t.done:
             items.append(dict(kind="task", obj=t, date=t.due_date, title=t.title,
                               label="Task", school=t.school, done=t.done))
+    # Only scholarships Cian marked "Interested" (or has since applied to) count.
     for s in Scholarship.query.filter(Scholarship.deadline.isnot(None)).all():
-        finished = s.status in ("Submitted", "Awarded", "Not awarded")
-        if include_done or not finished:
+        if s.interested or (include_done and s.finished and s.status != "Skip"):
             items.append(dict(kind="scholarship", obj=s, date=s.deadline, title=s.name,
-                              label="Scholarship", school=None, done=finished))
+                              label="Scholarship", school=None, done=not s.interested))
     items.sort(key=lambda i: (i["date"], i["title"]))
     return items
 
@@ -264,15 +268,92 @@ def aid():
     aid_deadlines = (Deadline.query.filter(Deadline.kind.in_(["Financial aid", "Scholarship"]))
                      .order_by(Deadline.due_date).all())
     schools = on_list_schools()
-    scholarships = Scholarship.query.order_by(Scholarship.deadline.is_(None),
-                                              Scholarship.deadline).all()
+    rows = Scholarship.query.all()
+    sch_counts = dict(total=len(rows), interested=sum(s.interested for s in rows),
+                      applied=sum(s.status in ("Applied", "Awarded", "Not awarded") for s in rows))
     aid_tasks = (Task.query.filter_by(category="Financial aid")
                  .order_by(Task.done, Task.due_date).all())
     aid_deadlines = [d for d in aid_deadlines if not d.school or d.school.on_list]
     aid_tasks = [t for t in aid_tasks if not t.school or t.school.on_list]
     return render_template("aid.html", aid_deadlines=aid_deadlines, schools=schools,
-                           scholarships=scholarships, aid_tasks=aid_tasks,
+                           sch_counts=sch_counts, aid_tasks=aid_tasks,
                            fee_waiver_statuses=FEE_WAIVER_STATUSES)
+
+
+SCHOLARSHIP_WHEN = OrderedDict([
+    ("open", "Still open"), ("30", "Due in 30 days"), ("90", "Due in 90 days"),
+    ("nodate", "No set date"), ("closed", "Closed"), ("all", "Any deadline"),
+])
+SCHOLARSHIP_SHOW = OrderedDict([
+    ("active", "All but skipped"), ("Interested", "Interested"), ("Not applied", "Not applied"),
+    ("Applied", "Applied or decided"), ("Skip", "Skipped"),
+])
+# The status buttons on each scholarship.
+SCHOLARSHIP_CHOICES = ["Not applied", "Interested", "Applied", "Skip"]
+
+
+def scholarship_matches(s, when, show, school, today):
+    if when == "open" and s.deadline and s.deadline < today:
+        return False
+    if when in ("30", "90") and not (s.deadline and today <= s.deadline
+                                     <= today + timedelta(days=int(when))):
+        return False
+    if when == "nodate" and s.deadline:
+        return False
+    if when == "closed" and not (s.deadline and s.deadline < today):
+        return False
+    if show == "active" and s.status == "Skip":
+        return False
+    if show == "Applied" and s.status not in ("Applied", "Awarded", "Not awarded"):
+        return False
+    if show in ("Interested", "Not applied", "Skip") and s.status != show:
+        return False
+    if school == "outside" and (s.applies_to or "outside") != "outside":
+        return False
+    if isinstance(school, School) and not s.for_school(school):
+        return False
+    return True
+
+
+@bp.route("/scholarships")
+def scholarships():
+    today = date.today()
+    f = dict(type=request.args.get("type", ""), when=request.args.get("when", "open"),
+             show=request.args.get("show", "active"), school=request.args.get("school", ""))
+    if f["when"] not in SCHOLARSHIP_WHEN:
+        f["when"] = "open"
+    if f["show"] not in SCHOLARSHIP_SHOW:
+        f["show"] = "active"
+    rows = Scholarship.query.order_by(Scholarship.deadline.is_(None), Scholarship.deadline,
+                                      Scholarship.name).all()
+    school = (db.session.get(School, int(f["school"])) if f["school"].isdigit()
+              else f["school"])
+    shown = [s for s in rows
+             if (not f["type"] or (s.category or "other") == f["type"])
+             and scholarship_matches(s, f["when"], f["show"], school, today)]
+    schools = on_list_schools()
+    all_schools = School.query.order_by(School.name).all()
+    tied = {s.id: [sc for sc in all_schools if s.for_school(sc)] for s in shown}
+    counts = {st: sum(1 for s in rows if s.status == st) for st in SCHOLARSHIP_STATUSES}
+    return render_template("scholarships.html", scholarships=shown, total=len(rows),
+                           tied=tied, schools=schools, f=f, counts=counts,
+                           types=SCHOLARSHIP_TYPES, whens=SCHOLARSHIP_WHEN,
+                           shows=SCHOLARSHIP_SHOW, choices=SCHOLARSHIP_CHOICES,
+                           filtered=f != dict(type="", when="open", show="active", school=""))
+
+
+@bp.route("/scholarships/<int:id>/status", methods=["POST"])
+def set_scholarship_status(id):
+    s = db.get_or_404(Scholarship, id)
+    value = request.form.get("status")
+    if value not in SCHOLARSHIP_STATUSES:
+        abort(400)
+    s.status = value
+    db.session.commit()
+    if value == "Interested" and s.deadline:
+        flash(f"{s.name} is on the timeline and calendar.")
+    return redirect(safe_next(request.form.get("next"), url_for("planner.scholarships"))
+                    + f"#s{s.id}")
 
 
 def calendar_response(download):
@@ -342,7 +423,7 @@ def apply_form(obj, fields, form):
         else:
             value = raw.strip()
             if ftype == "select" and value not in choices:
-                value = choices[0]
+                value = list(choices)[0]
         if name in REQUIRED and value in (None, ""):
             errors.append(f"{label} is required.")
         setattr(obj, name, value)

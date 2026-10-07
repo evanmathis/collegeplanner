@@ -18,6 +18,7 @@
     <a href="{{ url_for('planner.schools') }}" {% if request.endpoint in ['planner.schools', 'planner.school_detail'] %}class="active" aria-current="page"{% endif %}>Schools</a>
     <a href="{{ url_for('planner.tasks') }}" {% if request.endpoint in ['planner.tasks'] %}class="active" aria-current="page"{% endif %}>Tasks</a>
     <a href="{{ url_for('planner.aid') }}" {% if request.endpoint in ['planner.aid'] %}class="active" aria-current="page"{% endif %}>Paying for college</a>
+    <a href="{{ url_for('planner.scholarships') }}" {% if request.endpoint in ['planner.scholarships'] %}class="active" aria-current="page"{% endif %}>Scholarships</a>
     <a href="{{ url_for('planner.questions') }}" {% if request.endpoint in ['planner.questions'] %}class="active" aria-current="page"{% endif %}>Questions</a>
     <a href="{{ url_for('planner.calendar') }}" {% if request.endpoint in ['planner.calendar'] %}class="active" aria-current="page"{% endif %}>Calendar</a>
     {% if login_enabled and session.logged_in %}

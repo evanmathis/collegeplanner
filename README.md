@@ -14,6 +14,7 @@ DreamHost.
 - **Schools**: Cian's list, plus "Still deciding" (suggested schools, private and out-of-state options, and schools in Spain and Latin America) with a Keep or Remove button on each. Removed schools stay under "Removed" and can be brought back. Only kept schools show on the timeline, tasks and calendar. Each school page has its requirements, extra steps for studying abroad, deadlines, tasks, links and questions.
 - **Tasks**: every to-do across all schools.
 - **Paying for college**: a short guide to FAFSA / CA Dream Act and Cal Grant, aid deadlines, fee-waiver status per school, and a scholarship tracker.
+- **Scholarships**: 35 researched scholarships, contests and fee waivers with direct apply links, filterable by type, deadline, school and status. Cian marks each as Not applied, Interested, Applied or Skip; only Interested ones go on the timeline, Up next and the calendar. "Opens in a browser only" marks sites that block automated checks. Search sites and scam warnings sit under Explore more.
 - **Questions**: log anything you're unsure about and write down the answer when you find it.
 
 ## Due dates on your calendar
@@ -63,7 +64,7 @@ Run the tests with `pytest`.
 ## School data
 
 `data/schools.csv` has one row per school (deadlines for the fall 2027 class, checked
-2026-10-07), `data/suggestions.csv` and `data/more_schools.csv` (notes in `data/more_schools_notes.md`) have other schools to decide on, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions). `data/README.md`
+2026-10-07), `data/suggestions.csv` and `data/more_schools.csv` (notes in `data/more_schools_notes.md`) have other schools to decide on, and `data/tasks.csv` has the Venice High and application steps (Naviance, Brag Sheet, CaliforniaColleges.edu, letters, UC Personal Insight Questions), and `data/scholarships.csv` has the scholarships (checked 2026-10-07). `data/README.md`
 summarizes the shared deadlines. To update the data, edit the CSVs and run
 `python -m flask --app planner seed` again.
 
